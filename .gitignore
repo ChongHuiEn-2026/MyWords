@@ -22,3 +22,35 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# MyWords local credentials (keep config.example.txt tracked)
+config.txt
+config.local.txt
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local communication records, memory and AI logs - never commit real user data
+/data/
+/private-data/
+ai_log.txt
+ai_log*.txt
+*.local.txt
+
+# Generated Java / NetBeans / IDE output; shared project metadata stays reviewable
+/build/
+/dist/
+/out/
+/target/
+/nbproject/private/
+.idea/
+*.iml
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Fictional fixtures may be committed under examples/data/.
+# The original Java ignore patterns above are preserved.
