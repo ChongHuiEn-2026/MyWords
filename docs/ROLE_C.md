@@ -49,6 +49,14 @@ earlier plan; do not silently switch transport or add Collections-based SDK stor
 7. On failure, let A offer B's existing saved phrases or manual entry. Do not call
    generic fallback text personalized or pretend it is an AI response.
 
+## Malaysian slang and rojak suggestions
+
+Implement the [shared language behavior](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing)
+in the prompt. Use the communicator's selected language/style and context. Keep
+recognizable supplied terms such as `tapau` or `yum cha` when they fit the casual
+style and preserve meaning. For formal requests, follow the chosen register.
+Keep the three-candidate response contract and let the communicator choose.
+
 ## Privacy and error checklist
 
 - [ ] Obtain online transmission permission; offline mode works when declined.
@@ -65,6 +73,7 @@ earlier plan; do not silently switch transport or add Collections-based SDK stor
 - [ ] Reviewed Java AI APIs and a documented provider response contract.
 - [ ] Safe configuration example and clear local setup instructions.
 - [ ] Working Java request, prompt, parsing and display-log path.
+- [ ] Check the shared casual and formal examples with D and record observed outputs.
 - [ ] Meaningful failure tests and GUI fallback walkthrough with A/B.
 - [ ] Generic versus personalized comparison with D using matched fictional inputs.
 - [ ] Report/video explanation of your classes, API path, errors, privacy and limits.
@@ -76,5 +85,6 @@ earlier plan; do not silently switch transport or add Collections-based SDK stor
 > AIHelper.ask(String prompt), follow reviewed A/B/D interfaces, and identify any
 > proposed contracts that still need agreement. Implement my approved AI task in
 > Java with safe local config, explicit exceptions, bounded parsing and offline
-> fallback coordination. Keep keys/private data out of Git and logs. Explain the
-> important Java code at beginner level and report meaningful verification.
+> fallback coordination. Follow the shared Malaysian slang and rojak scenarios
+> in docs/PROJECT_CONTEXT.md. Keep keys/private data out of Git and logs. Explain
+> the important Java code at beginner level and report meaningful verification.

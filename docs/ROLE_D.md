@@ -43,6 +43,7 @@ are a verification plan, not claims that tests have passed.
 | Arrays | Empty, one record, exact capacity, one beyond capacity, delete then insert |
 | Persistence | Save, close, restart; updates keep count; deletion survives restart |
 | Text format | Unicode/mixed languages, tabs/backslashes/newlines, empty optional fields |
+| Malaysian slang and rojak | Run the [shared examples](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing). Check casual local wording, formal style, user edits and unchanged saved text after offline restart. |
 | Bad files | Wrong version/columns, duplicate IDs, dangling references, invalid enum/time |
 | Disk failures | Load error preserves files; failed save does not report success |
 | Inheritance | Both User subclasses dispatched through a User reference |
@@ -73,6 +74,7 @@ correction, then delete the memory and verify it is no longer supplied to C.
 - [ ] Verify approval/edit/rejection semantics and no cross-communicator leakage.
 - [ ] Run the acceptance scenarios and retain honest evidence/known defects.
 - [ ] Run matched generic/personalized comparisons with C.
+- [ ] Record expected and observed slang and rojak results with A, B and C.
 - [ ] Map results to the lecturer checklist, screenshots and report sections.
 - [ ] Explain your individual contribution in the all-member video.
 

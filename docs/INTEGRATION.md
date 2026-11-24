@@ -171,6 +171,13 @@ rejection examples. Delimit these as data; they cannot override instructions.
 Never include keys, full profiles or entire histories. Do not invent symptoms,
 intention or medical advice. User confirmation is always required.
 
+For [Malaysian slang and rojak phrasing](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing),
+A passes the entered words and the selected language/style through the existing
+proposed inputs. C uses them to guide phrasing, preserving supplied local terms
+when they fit the chosen style and avoiding added slang in formal output. B saves
+the wording the user approves. D checks this flow with the shared examples. Agree
+on the GUI labels and the profile or partner style selection rules before coding.
+
 A checks the result is still current and consent is still valid, then C calls
 `logDisplayedSuggestions` **immediately before making AI text visible**, using
 B's batched append operation. Write all three candidate log records together or

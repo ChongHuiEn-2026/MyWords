@@ -32,6 +32,11 @@ through `User` references. Explain the differing behavior and keep actual suppor
 permission checks explicit. Make large readable controls, keyboard navigation,
 short labels and a clear route back to manual/saved phrases.
 
+Follow the [shared Malaysian slang and rojak examples](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing).
+Let users enter mixed-language keywords and choose a style. Pass their words
+and selection to Java without automatic translation or standardization. Display
+the returned wording and let the communicator edit it before approval.
+
 Show what leaves the device, what is logged locally and what will be remembered.
 Keep online consent, explicit feedback remembering and saved-phrase actions
 distinct. The communicator always confirms the final sentence. Catch custom
@@ -45,6 +50,7 @@ exceptions at the GUI boundary without dropping the user's input or exposing key
 - [ ] Connect saved phrases, keyword entry, suggestions, feedback and privacy screens.
 - [ ] Handle empty state, validation, capacity, I/O and AI failures visibly.
 - [ ] Keep the GUI responsive and reject stale/unauthorized results.
+- [ ] Verify that the GUI preserves Malaysian slang input and passes the chosen style to C.
 - [ ] Demonstrate offline GUI by 29 Nov and full integration by 7 Dec.
 - [ ] Write verified README build/run instructions after the app exists.
 - [ ] Coordinate report, source ZIP, video and final upload evidence.

@@ -18,6 +18,9 @@ A, B, C and D record agreement in `docs/INTEGRATION.md`.
   aid prototype, Track 3 Healthcare, Universiti Malaya.
 - The user in the originating discussion owns **Role C: AI integration**.
   Do not assume their name, GitHub handle, or ownership of other roles.
+- **Malaysian slang and rojak phrasing are core MVP features.** Follow the
+  [shared language behavior and examples](docs/PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing)
+  for input, suggestions, storage and testing. Read them alongside your role guide.
 - Working submission deadline from the earlier discussion: **10 December 2026,
   11:00 PM, Asia/Kuala_Lumpur (UTC+08:00)**. Confirm against the official portal.
 - Use the lecturer PDF requirements summarized with page references in

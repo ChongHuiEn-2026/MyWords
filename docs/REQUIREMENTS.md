@@ -40,6 +40,14 @@ classes **for object storage**; it does not independently establish a ban on eve
 utility class in that package. Do not use this distinction to introduce collection
 storage indirectly through helpers, parsing libraries or stream operations.
 
+## Team MVP requirement: Malaysian language support
+
+The MyWords MVP includes Malaysian slang and rojak phrasing. This is a team
+product requirement. The [shared examples](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing)
+define the target behavior across GUI input, AI suggestions, saved phrases and
+testing. The selected style should guide suggestions without changing what the
+communicator is trying to say. A, B, C and D each own a checkpoint in that flow.
+
 ## Earlier constraints retained pending confirmation
 
 | Working constraint | Implementation intention | Verification status |
