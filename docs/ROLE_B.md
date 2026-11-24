@@ -28,6 +28,11 @@ temporary arrays/counters, validate references and publish state only when valid
 Missing files on first run are empty state; malformed existing data is an error.
 Do not replace unreadable data with an apparently successful empty save.
 
+Use the [shared Malaysian slang and rojak examples](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing)
+as fictional storage fixtures. Keep the approved wording, including `tapau`,
+`Ah Ma` or `yum cha`, across save, restart and offline retrieval. Apply only the
+agreed input validation and file escaping to that text.
+
 Persist a mutation before reporting success and keep prior state recoverable on
 disk errors. Support memory/phrase deletion and complete log clearing. Never
 commit local runtime data; use fictional fixtures under `examples/data/` for tests

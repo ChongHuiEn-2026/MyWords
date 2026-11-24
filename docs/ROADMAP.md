@@ -13,7 +13,7 @@ targets. Finish features by 7 December; reserve 8-9 December for submission work
 | 26-27 Nov | Common Java project, UML, screen sketches, arrays and service stubs | A/B; C/D review record models |
 | 28-29 Nov | Usable GUI without online AI: manual phrases, errors and save/restart | A/B; D verifies |
 | 30 Nov-2 Dec | Java API integration, response validation, logs and offline fallback | C; depends on A/B stubs |
-| 3-4 Dec | Explicit feedback memory, partner styles and mixed-language scenarios | D/C/B with A's consent UI |
+| 3-4 Dec | Explicit feedback memory, partner styles and Malaysian slang and rojak scenarios | D/C/B with A's consent UI |
 | 5-7 Dec | Integrated acceptance tests, generic/personalized comparison, feature freeze | All; D coordinates evidence |
 | 8-9 Dec | Final report, screenshots, source ZIP, 5-7 minute all-member video | All; A coordinates |
 | 10 Dec | Fresh-machine/offline checks, upload early, verify receipt before 23:00 | All; final portal owner to be assigned |
@@ -58,7 +58,7 @@ below remain unchecked; this pack does not assert implementation progress.
 - [ ] A: saved phrases/manual entry work when AI is unavailable or declined.
 - [ ] D/B: feedback and approved phrases remain distinct and persist correctly.
 - [ ] D: only permitted memory influences later suggestions; deletion takes effect.
-- [ ] C/D: test family/friends/healthcare context and English/BM/mixed-language inputs.
+- [ ] A/B/C/D: run the [Malaysian slang and rojak examples](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing) from keyword entry and style selection through suggestions, save and offline reload.
 
 ## Phase 4: verify and freeze (5-7 Dec)
 

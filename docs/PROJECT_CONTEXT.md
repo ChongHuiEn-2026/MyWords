@@ -43,7 +43,7 @@ as a local demonstration, not a multi-user clinical service.
 | MVP | Approve/edit/reject, with optional user-confirmed rejection reasons |
 | MVP | Profiles, conversation contexts, saved phrases and text-file restart persistence |
 | MVP | Permission-based memory retrieval and partner/context style preferences |
-| MVP | English/Bahasa Malaysia and Malaysian mixed-language examples; evaluate actual behavior |
+| MVP | Malaysian slang and rojak phrasing, including English/Bahasa Malaysia and terms supplied by the communicator |
 | MVP | Offline saved phrases and clear AI/network error recovery |
 | MVP | Memory view/delete and explicit consent for provider transmission and learning |
 | Enhancement | Conversation repair after a misunderstanding, only after the MVP works |
@@ -53,6 +53,31 @@ as a local demonstration, not a multi-user clinical service.
 Aim for large readable text, generous controls, short labels, keyboard access and
 few decisions per screen. Test with fictional scenarios first. Do not present
 informal classmate feedback as evidence about patients or aphasia outcomes.
+
+## Malaysian slang and rojak phrasing
+
+MyWords is designed for everyday Malaysian speech. The first release should
+accept local terms, informal spelling and mixed-language keywords. When the
+communicator prefers casual or rojak phrasing, suggestions should preserve local
+expressions that fit the meaning. For a formal preference, offer suitable wording
+while preserving the same intent. Use the selected style and conversation context
+together. The communicator can review, edit or reject every suggestion.
+
+These fictional examples are shared build and acceptance scenarios for A, B, C
+and D. The candidate in each row shows one acceptable possibility.
+
+| Keywords | Selected style and context | Example candidate or expected behavior |
+| --- | --- | --- |
+| `later, tapau, nasi lemak, for me` | Casual rojak, Friends | `Later can tapau nasi lemak for me?` Keep the supplied local term. |
+| `later, tapau, nasi lemak, for me` | Formal English, Friends | `Could you get me some nasi lemak to take away later?` Keep the request and food name while changing the register. |
+| `tomorrow, Ah Ma, yum cha` | Casual mixed language, Family | `Tomorrow I want to yum cha with Ah Ma.` Keep the familiar terms where they fit. |
+| `nurse, speak, now` | Formal English, Healthcare | `Could I speak with a nurse now?` Follow the chosen style and avoid inventing symptoms or adding advice. |
+
+A checks that the GUI passes the entered wording and chosen style to Java and
+displays the returned text. B checks that saved wording survives restart and is
+available offline. C implements the matching prompt behavior and checks that the
+three suggestions still follow the response contract. D runs the same cases
+across the GUI, generation and save/reload flow and records what happened.
 
 ## Innovation hypothesis and evidence
 
