@@ -5,6 +5,11 @@ the Universiti Malaya WIX1002 Fundamentals of Programming Hackathon, Track 3:
 Healthcare. A person enters keywords, reviews possible sentences, and chooses,
 edits or rejects them. Only explicitly approved feedback becomes personal memory.
 
+MyWords is designed for Malaysian everyday speech, including local slang and
+rojak phrasing that mixes languages. Suggestions follow the communicator's chosen
+style and can keep local expressions such as `tapau` or `Ah Ma` when appropriate.
+See the [shared language behavior and examples](docs/PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing).
+
 MyWords is an educational prototype, with no clinical validation or treatment
 claims. See [project scope and privacy](docs/PROJECT_CONTEXT.md).
 
