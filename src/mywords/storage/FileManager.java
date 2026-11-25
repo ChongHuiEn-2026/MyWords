@@ -3,25 +3,44 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package mywords.storage;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import mywords.exception.InvalidInputException;
 import mywords.exception.StorageFullException;
 import mywords.model.Codes;
+import mywords.model.Communicator;
 import mywords.model.CommunicationProfile;
 import mywords.model.ConversationPartner;
 import mywords.model.Feedback;
 import mywords.model.Phrase;
+import mywords.model.Supporter;
 import mywords.model.User;
 public class FileManager
 {
     // Owner: Role A. 所有资料的数组 + counter + .txt 存读 (INTEGRATION.md §3 + §5)
     // 规则: 只用 array + int counter,不用 ArrayList/HashMap;占用的格子是 [0, count)
-    // Step 1 (done): 数组的 find / get / save / delete. Step 2-3 (TODO): escape + 读写 .txt
+    // Step 1: 数组的 find / get / save / delete. Step 2: RecordCodec. Step 3: 读写 .txt
     public static final int MAX_USERS = 100; //容量是提议值,全组同意后再定
     public static final int MAX_PROFILES = 20;
     public static final int MAX_PARTNERS = 200;
     public static final int MAX_PHRASES = 1000;
     public static final int MAX_FEEDBACK = 2000;
+    public static final long MAX_LOG_BYTES = 5L * 1024 * 1024; //ai_log.txt 上限 5 MB
+    private static final String USERS_FILE = "users.txt"; //档名集中在这里,改一个地方就好
+    private static final String PROFILES_FILE = "profiles.txt";
+    private static final String PARTNERS_FILE = "partners.txt";
+    private static final String PHRASES_FILE = "phrases.txt";
+    private static final String FEEDBACK_FILE = "feedback.txt";
+    private static final String AI_LOG_FILE = "ai_log.txt";
     private final String dataFolder; //例如 "data",放 users.txt / profiles.txt ... (已被 .gitignore 忽略)
     private User[] users = new User[MAX_USERS];
     private int userCount = 0; //现在用了几格
@@ -41,13 +60,284 @@ public class FileManager
     {
         return dataFolder;
     }
+    // ===================== Step 3: 读档 =====================
+    private String[] readDataLines(String fileName, String type, int maxRecords) throws IOException, InvalidInputException, StorageFullException
+    {
+        File file = new File(dataFolder, fileName); //data/users.txt 这样
+        if (!file.exists()) //第一次运行还没有档案 -> 当作 0 笔
+        {
+            return new String[0];
+        }
+        String[] buffer = new String[maxRecords]; //先开最大容量
+        int count = 0;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) //try-with-resources: 用完自动关档
+        {
+            String header = reader.readLine(); //第一行是标头
+            if (header != null && header.startsWith("﻿")) //用 Notepad 存过可能多了 BOM 隐形字,去掉
+            {
+                header = header.substring(1);
+            }
+            String expected = "#MyWords|1|" + type;
+            if (header == null || !header.equals(expected)) //标头不对 = 不是我们的档案或版本不对
+            {
+                throw new InvalidInputException(fileName + ": first line must be " + expected);
+            }
+            String line = reader.readLine();
+            while (line != null) //一直读到档案结尾 (readLine 回传 null)
+            {
+                if (!line.isEmpty()) //空行跳过
+                {
+                    if (count >= maxRecords) //资料比容量还多
+                    {
+                        throw new StorageFullException(fileName + " has more than " + maxRecords + " records.");
+                    }
+                    buffer[count] = line;
+                    count++;
+                }
+                line = reader.readLine();
+            }
+        }
+        String[] result = new String[count]; //缩成刚好大小
+        for (int i = 0; i < count; i++)
+        {
+            result[i] = buffer[i];
+        }
+        return result;
+    }
     public void loadAll() throws IOException, InvalidInputException, StorageFullException
     {
-        // TODO Step 3: 读 6 个 .txt;文件不存在 = 第一次运行 (空资料);文件坏了要报错,不能当成空的
+        // 重点: 先全部读进 "临时数组" 检查完,全部 OK 才换掉真正的数组 -> 档案坏了也不会只读一半
+        String[] lines = readDataLines(USERS_FILE, "USERS", MAX_USERS);
+        User[] newUsers = new User[MAX_USERS];
+        for (int i = 0; i < lines.length; i++)
+        {
+            String[] f = parseLine(lines[i], 5, USERS_FILE, i); //userId|type|displayName|profileId|supporterAuthorized
+            if (f[1].equals("COMMUNICATOR")) //依 type 建不同的子类 -> 都放进 User[] (polymorphism)
+            {
+                newUsers[i] = new Communicator(f[0], f[2], f[3]);
+            }
+            else if (f[1].equals("SUPPORTER"))
+            {
+                newUsers[i] = new Supporter(f[0], f[2], f[3], parseBool(f[4], USERS_FILE, i));
+            }
+            else
+            {
+                throw new InvalidInputException(USERS_FILE + " line " + (i + 2) + ": unknown user type " + f[1]);
+            }
+        }
+        int newUserCount = lines.length;
+        lines = readDataLines(PROFILES_FILE, "PROFILES", MAX_PROFILES);
+        CommunicationProfile[] newProfiles = new CommunicationProfile[MAX_PROFILES];
+        for (int i = 0; i < lines.length; i++)
+        {
+            String[] f = parseLine(lines[i], 6, PROFILES_FILE, i); //profileId|ownerUserId|displayName|languageStyle|preferredTone|aiSharingEnabled
+            newProfiles[i] = new CommunicationProfile(f[0], f[1], f[2], f[3], f[4], parseBool(f[5], PROFILES_FILE, i));
+        }
+        int newProfileCount = lines.length;
+        lines = readDataLines(PARTNERS_FILE, "PARTNERS", MAX_PARTNERS);
+        ConversationPartner[] newPartners = new ConversationPartner[MAX_PARTNERS];
+        for (int i = 0; i < lines.length; i++)
+        {
+            String[] f = parseLine(lines[i], 5, PARTNERS_FILE, i); //partnerId|profileId|contextCode|label|preferredTone
+            newPartners[i] = new ConversationPartner(f[0], f[1], f[2], f[3], f[4]);
+        }
+        int newPartnerCount = lines.length;
+        lines = readDataLines(PHRASES_FILE, "PHRASES", MAX_PHRASES);
+        Phrase[] newPhrases = new Phrase[MAX_PHRASES];
+        for (int i = 0; i < lines.length; i++)
+        {
+            String[] f = parseLine(lines[i], 8, PHRASES_FILE, i); //phraseId|profileId|partnerId|contextCode|keywords|confirmedText|allowAIReuse|createdAt
+            newPhrases[i] = new Phrase(f[0], f[1], f[2], f[3], f[4], f[5], parseBool(f[6], PHRASES_FILE, i), parseTime(f[7], PHRASES_FILE, i));
+        }
+        int newPhraseCount = lines.length;
+        lines = readDataLines(FEEDBACK_FILE, "FEEDBACK", MAX_FEEDBACK);
+        Feedback[] newFeedbacks = new Feedback[MAX_FEEDBACK];
+        for (int i = 0; i < lines.length; i++)
+        {
+            String[] f = parseLine(lines[i], 11, FEEDBACK_FILE, i); //feedbackId|profileId|partnerId|contextCode|keywords|candidateText|decisionCode|reasonCode|confirmedText|allowAIReuse|createdAt
+            newFeedbacks[i] = new Feedback(f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], parseBool(f[9], FEEDBACK_FILE, i), parseTime(f[10], FEEDBACK_FILE, i));
+        }
+        int newFeedbackCount = lines.length;
+        // 全部读完了 -> 先暂时换上新资料,再用 Step 1 写好的检查逐笔验证
+        User[] oldUsers = users; //备份旧的,验证失败要换回来
+        CommunicationProfile[] oldProfiles = profiles;
+        ConversationPartner[] oldPartners = partners;
+        Phrase[] oldPhrases = phrases;
+        Feedback[] oldFeedbacks = feedbacks;
+        int[] oldCounts = {userCount, profileCount, partnerCount, phraseCount, feedbackCount};
+        users = newUsers;
+        userCount = newUserCount;
+        profiles = newProfiles;
+        profileCount = newProfileCount;
+        partners = newPartners;
+        partnerCount = newPartnerCount;
+        phrases = newPhrases;
+        phraseCount = newPhraseCount;
+        feedbacks = newFeedbacks;
+        feedbackCount = newFeedbackCount;
+        try
+        {
+            validateLoadedData(); //有问题会 throw InvalidInputException
+        }
+        catch (InvalidInputException e) //验证失败 -> 全部换回旧资料,再把错误丢出去
+        {
+            users = oldUsers;
+            profiles = oldProfiles;
+            partners = oldPartners;
+            phrases = oldPhrases;
+            feedbacks = oldFeedbacks;
+            userCount = oldCounts[0];
+            profileCount = oldCounts[1];
+            partnerCount = oldCounts[2];
+            phraseCount = oldCounts[3];
+            feedbackCount = oldCounts[4];
+            throw e;
+        }
+    }
+    private static String[] parseLine(String line, int fieldCount, String fileName, int index) throws InvalidInputException
+    {
+        try
+        {
+            return RecordCodec.split(line, fieldCount);
+        }
+        catch (InvalidInputException e) //加上档名和第几行,方便找错 (+2 = 标头那一行 + 从 1 开始算)
+        {
+            throw new InvalidInputException(fileName + " line " + (index + 2) + ": " + e.getMessage());
+        }
+    }
+    private static boolean parseBool(String text, String fileName, int index) throws InvalidInputException
+    {
+        try
+        {
+            return RecordCodec.parseBoolean(text);
+        }
+        catch (InvalidInputException e)
+        {
+            throw new InvalidInputException(fileName + " line " + (index + 2) + ": " + e.getMessage());
+        }
+    }
+    private static long parseTime(String text, String fileName, int index) throws InvalidInputException
+    {
+        try
+        {
+            return RecordCodec.parseLong(text);
+        }
+        catch (InvalidInputException e)
+        {
+            throw new InvalidInputException(fileName + " line " + (index + 2) + ": " + e.getMessage());
+        }
+    }
+    private void validateLoadedData() throws InvalidInputException
+    {
+        for (int i = 0; i < userCount; i++)
+        {
+            requireText(users[i].getUserId(), "User ID");
+            if (findUserIndex(users[i].getUserId()) != i) //find 找到的是更前面那格 = ID 重复
+            {
+                throw new InvalidInputException(USERS_FILE + ": duplicate ID " + users[i].getUserId());
+            }
+        }
+        for (int i = 0; i < profileCount; i++)
+        {
+            requireText(profiles[i].getProfileId(), "Profile ID");
+            if (findProfileIndex(profiles[i].getProfileId()) != i)
+            {
+                throw new InvalidInputException(PROFILES_FILE + ": duplicate ID " + profiles[i].getProfileId());
+            }
+        }
+        for (int i = 0; i < partnerCount; i++)
+        {
+            if (findPartnerIndex(partners[i].getPartnerId()) != i)
+            {
+                throw new InvalidInputException(PARTNERS_FILE + ": duplicate ID " + partners[i].getPartnerId());
+            }
+            getProfile(partners[i].getProfileId()); //partner 指向的 profile 一定要存在
+            if (!Codes.isValid(partners[i].getContextCode(), Codes.CONTEXTS))
+            {
+                throw new InvalidInputException(PARTNERS_FILE + ": unknown context " + partners[i].getContextCode());
+            }
+        }
+        for (int i = 0; i < phraseCount; i++)
+        {
+            if (findPhraseIndex(phrases[i].getPhraseId()) != i)
+            {
+                throw new InvalidInputException(PHRASES_FILE + ": duplicate ID " + phrases[i].getPhraseId());
+            }
+            validatePhrase(phrases[i]); //重用 Step 1 的检查 (profile/partner 配对、场景一致)
+        }
+        for (int i = 0; i < feedbackCount; i++)
+        {
+            if (findFeedbackIndex(feedbacks[i].getFeedbackId()) != i)
+            {
+                throw new InvalidInputException(FEEDBACK_FILE + ": duplicate ID " + feedbacks[i].getFeedbackId());
+            }
+            validateFeedback(feedbacks[i]);
+        }
+    }
+    // ===================== Step 3: 写档 =====================
+    private void writeDataFile(String fileName, String type, String[] lines) throws IOException
+    {
+        File folder = new File(dataFolder);
+        if (!folder.exists() && !folder.mkdirs()) //资料夹不存在就建;建不了就报错
+        {
+            throw new IOException("Cannot create data folder: " + folder.getAbsolutePath());
+        }
+        File target = new File(folder, fileName);
+        File temp = new File(folder, fileName + ".tmp"); //先写到临时档
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(temp), StandardCharsets.UTF_8)))
+        {
+            writer.write("#MyWords|1|" + type); //第一行: 标头
+            writer.newLine();
+            for (int i = 0; i < lines.length; i++)
+            {
+                writer.write(lines[i]);
+                writer.newLine();
+            }
+        } //离开 try 自动 close (= 真正写进硬盘)
+        Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING); //写成功才把临时档换成正式档;中途失败原本的档案还在
     }
     public void saveAll() throws IOException
     {
-        // TODO Step 3: 先写 .tmp 再替换,写失败要保留原本的文件
+        String[] lines = new String[userCount];
+        for (int i = 0; i < userCount; i++)
+        {
+            boolean authorized = false;
+            if (users[i] instanceof Supporter) //只有 Supporter 才有授权 flag
+            {
+                authorized = ((Supporter) users[i]).isSupporterAuthorized(); //cast 成 Supporter 才能叫它自己的方法
+            }
+            lines[i] = RecordCodec.join(new String[] {users[i].getUserId(), users[i].getTypeCode(), users[i].getDisplayName(), users[i].getProfileId(), String.valueOf(authorized)});
+        }
+        writeDataFile(USERS_FILE, "USERS", lines);
+        lines = new String[profileCount];
+        for (int i = 0; i < profileCount; i++)
+        {
+            CommunicationProfile p = profiles[i];
+            lines[i] = RecordCodec.join(new String[] {p.getProfileId(), p.getOwnerUserId(), p.getDisplayName(), p.getLanguageStyle(), p.getPreferredTone(), String.valueOf(p.isAiSharingEnabled())});
+        }
+        writeDataFile(PROFILES_FILE, "PROFILES", lines);
+        lines = new String[partnerCount];
+        for (int i = 0; i < partnerCount; i++)
+        {
+            ConversationPartner c = partners[i];
+            lines[i] = RecordCodec.join(new String[] {c.getPartnerId(), c.getProfileId(), c.getContextCode(), c.getLabel(), c.getPreferredTone()});
+        }
+        writeDataFile(PARTNERS_FILE, "PARTNERS", lines);
+        lines = new String[phraseCount];
+        for (int i = 0; i < phraseCount; i++)
+        {
+            Phrase p = phrases[i];
+            lines[i] = RecordCodec.join(new String[] {p.getPhraseId(), p.getProfileId(), p.getPartnerId(), p.getContextCode(), p.getKeywords(), p.getConfirmedText(), String.valueOf(p.isAllowAIReuse()), String.valueOf(p.getCreatedAt())});
+        }
+        writeDataFile(PHRASES_FILE, "PHRASES", lines);
+        lines = new String[feedbackCount];
+        for (int i = 0; i < feedbackCount; i++)
+        {
+            Feedback f = feedbacks[i];
+            lines[i] = RecordCodec.join(new String[] {f.getFeedbackId(), f.getProfileId(), f.getPartnerId(), f.getContextCode(), f.getKeywords(), f.getCandidateText(), f.getDecisionCode(), f.getReasonCode(), f.getConfirmedText(), String.valueOf(f.isAllowAIReuse()), String.valueOf(f.getCreatedAt())});
+        }
+        writeDataFile(FEEDBACK_FILE, "FEEDBACK", lines);
+        // 注意: 5 个档案是一个一个写的,中途失败可能只有部分更新 (还不是 multi-file atomic)
     }
     // ===================== 小工具 =====================
     private static void requireText(String value, String fieldName) throws InvalidInputException
@@ -404,7 +694,30 @@ public class FileManager
     }
     public void appendAILog(String requestId, String profileId, String partnerId, String contextCode, String displayedReply) throws IOException, StorageFullException
     {
-        // TODO Step 3: 只记录显示给用户的 AI 回复,不能记 key / prompt;5 MB 上限
+        // 只记录"要显示给用户的 AI 回复" + 时间/范围;绝对不记 API key 或 prompt
+        File folder = new File(dataFolder);
+        if (!folder.exists() && !folder.mkdirs())
+        {
+            throw new IOException("Cannot create data folder: " + folder.getAbsolutePath());
+        }
+        File log = new File(folder, AI_LOG_FILE);
+        boolean isNew = !log.exists(); //新档案要先写标头
+        String line = RecordCodec.join(new String[] {String.valueOf(System.currentTimeMillis()), requestId, profileId, partnerId, contextCode, displayedReply});
+        long extraBytes = line.getBytes(StandardCharsets.UTF_8).length + 2; //这一行大概多少 byte (+2 给换行)
+        if (log.length() + extraBytes > MAX_LOG_BYTES) //超过 5 MB: 不偷偷删旧的,要用户先处理
+        {
+            throw new StorageFullException("AI log is full (5 MB). Please review or delete " + AI_LOG_FILE + ".");
+        }
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(log, true), StandardCharsets.UTF_8))) //true = append 模式,接在档案后面
+        {
+            if (isNew)
+            {
+                writer.write("#MyWords|1|AI_LOG");
+                writer.newLine();
+            }
+            writer.write(line);
+            writer.newLine();
+        }
     }
     // ===================== delete: 删掉后,后面的往左移一格 =====================
     private void removePhraseAt(int index)

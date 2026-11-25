@@ -18,7 +18,8 @@ public class Main
         FileManager fileManager = new FileManager("data"); //资料放在 project 里的 data/ 资料夹
         try
         {
-            fileManager.loadAll(); //读 .txt (现在是空的 TODO)
+            fileManager.loadAll(); //读 data/*.txt;没有档案 = 第一次运行
+            DemoData.createIfEmpty(fileManager); //完全没资料时建虚构示范资料
         }
         catch (Exception e) //读档失败: 告诉用户,不要假装成功
         {
