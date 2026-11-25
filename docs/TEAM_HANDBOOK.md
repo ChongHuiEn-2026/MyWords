@@ -112,7 +112,7 @@ void deleteProfileData(String profileId) throws IOException
 String nextId(String prefix)   // "U","P","CP","PH","FB" -> e.g. "PH004". ALWAYS use this for new IDs
 ```
 - Getters return **copies with exact length**. Use `.length`. "No match" gives an empty array, never null.
-- Every save writes the `.txt` files immediately.
+- Every save writes the `.txt` files immediately. If writing fails, the arrays are restored and an `IOException` saying "Nothing was changed" is thrown, so show that message to the user.
 - A phrase or feedback must use the **same context as its partner**, otherwise `InvalidInputException`.
 
 ### B: `AIHelper` and friends (to implement)
@@ -226,7 +226,7 @@ Shared fictional test cases. Every role tests these:
 
 ### Role A: core data and integration
 - [x] Profile, partner and supporter **creation** and settings methods in `AppController` (section 4). Done 25 Nov, 14 checks passed.
-- [ ] Make `saveX` roll back the in-memory change if writing the file fails (currently memory changes even when the save throws).
+- [x] Rollback: if writing a file fails, `FileManager` restores its arrays and throws `IOException` ("Nothing was changed"). Done 25 Nov, 7 failure checks passed.
 - [ ] Keep this handbook and `docs/DECISIONS.md` updated; final clean build and run instructions in README.
 - [ ] Evidence: inheritance through a `User` reference, restart persistence, `StorageFullException` demo.
 
@@ -288,6 +288,6 @@ git push
 
 ## 11. Known limitations (be honest in the report)
 - The 5 data files are written one after another. A crash in the middle can leave them partly updated (no multi-file atomicity).
-- If a save throws, the in-memory change is not yet rolled back (A, to do).
+- `FileManager` rolls back its **arrays** when a save fails. It cannot undo a **field you changed on an object** before calling save (for example `profile.setAiSharingEnabled(...)` or `phrase.setAllowAIReuse(...)`). Whoever calls the setter must set it back in the `catch`, as `AppController.updateProfileSettings` does. **D: please apply this in `toggleProfileAISharing`, `manageMemories` and `manageFeedbackMemory`.**
 - Choosing a profile is not secure login. The Supporter authorisation is a demo of rules, not security.
 - Retrieval is keyword overlap, not model training. Any accuracy improvement must be measured, never assumed.

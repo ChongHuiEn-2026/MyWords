@@ -52,6 +52,13 @@ public class FileManager
     private int phraseCount = 0;
     private Feedback[] feedbacks = new Feedback[MAX_FEEDBACK];
     private int feedbackCount = 0;
+    // 备份: 每次要改资料前先复制一份,写档失败就换回来 (rollback)
+    private User[] backupUsers;
+    private CommunicationProfile[] backupProfiles;
+    private ConversationPartner[] backupPartners;
+    private Phrase[] backupPhrases;
+    private Feedback[] backupFeedbacks;
+    private int[] backupCounts;
     public FileManager(String dataFolder)
     {
         this.dataFolder = dataFolder;
@@ -339,6 +346,41 @@ public class FileManager
         writeDataFile(FEEDBACK_FILE, "FEEDBACK", lines);
         // 注意: 5 个档案是一个一个写的,中途失败可能只有部分更新 (还不是 multi-file atomic)
     }
+    // ===================== Rollback: 写档失败 -> 内存资料换回改之前的样子 =====================
+    private void backup()
+    {
+        backupUsers = users.clone(); //数组的 clone() = 复制一个新数组 (格子里还是同样的物件)
+        backupProfiles = profiles.clone();
+        backupPartners = partners.clone();
+        backupPhrases = phrases.clone();
+        backupFeedbacks = feedbacks.clone();
+        backupCounts = new int[] {userCount, profileCount, partnerCount, phraseCount, feedbackCount}; //counter 也要记
+    }
+    private void restore()
+    {
+        users = backupUsers; //把备份的数组换回去
+        profiles = backupProfiles;
+        partners = backupPartners;
+        phrases = backupPhrases;
+        feedbacks = backupFeedbacks;
+        userCount = backupCounts[0];
+        profileCount = backupCounts[1];
+        partnerCount = backupCounts[2];
+        phraseCount = backupCounts[3];
+        feedbackCount = backupCounts[4];
+    }
+    private void commit() throws IOException
+    {
+        try
+        {
+            saveAll(); //写进 .txt
+        }
+        catch (IOException e) //写档失败
+        {
+            restore(); //内存换回改之前的样子,画面就不会显示"假的"已保存资料
+            throw new IOException("Could not save to " + dataFolder + ". Nothing was changed. (" + e.getMessage() + ")", e);
+        }
+    }
     // ===================== 小工具 =====================
     private static void requireText(String value, String fieldName) throws InvalidInputException
     {
@@ -512,6 +554,7 @@ public class FileManager
     // ===================== save: upsert (同 ID = 更新,新 ID = 加在最后) =====================
     public void saveUser(User user) throws InvalidInputException, StorageFullException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         if (user == null)
         {
             throw new InvalidInputException("User is missing.");
@@ -532,10 +575,11 @@ public class FileManager
             users[userCount] = user;
             userCount++; //用了一格,counter +1
         }
-        saveAll(); //Step 3 之后才会真的写进 .txt
+        commit(); //写进 .txt;失败会自动还原
     }
     public void saveProfile(CommunicationProfile profile) throws InvalidInputException, StorageFullException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         if (profile == null)
         {
             throw new InvalidInputException("Profile is missing.");
@@ -557,10 +601,11 @@ public class FileManager
             profiles[profileCount] = profile;
             profileCount++;
         }
-        saveAll();
+        commit();
     }
     public void savePartner(ConversationPartner partner) throws InvalidInputException, StorageFullException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         if (partner == null)
         {
             throw new InvalidInputException("Conversation partner is missing.");
@@ -590,7 +635,7 @@ public class FileManager
             partners[partnerCount] = partner;
             partnerCount++;
         }
-        saveAll();
+        commit();
     }
     private void validatePhrase(Phrase phrase) throws InvalidInputException
     {
@@ -621,13 +666,14 @@ public class FileManager
     }
     public void savePhrase(Phrase phrase) throws InvalidInputException, StorageFullException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         validatePhrase(phrase); //1. 先检查,不合法就 throw,数组完全没被改
         if (findPhraseIndex(phrase.getPhraseId()) == -1 && phraseCount >= MAX_PHRASES) //2. 新的而且满了
         {
             throw new StorageFullException("Phrase storage is full (" + MAX_PHRASES + ").");
         }
         putPhrase(phrase); //3. 检查都过了才真的改数组
-        saveAll();
+        commit();
     }
     private void validateFeedback(Feedback feedback) throws InvalidInputException
     {
@@ -656,6 +702,7 @@ public class FileManager
     }
     public void recordDecision(Feedback feedback, Phrase optionalConfirmedPhrase) throws InvalidInputException, StorageFullException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         validateFeedback(feedback); //1. 两样都先检查完
         boolean newFeedback = findFeedbackIndex(feedback.getFeedbackId()) == -1;
         boolean newPhrase = false;
@@ -690,7 +737,7 @@ public class FileManager
         {
             putPhrase(optionalConfirmedPhrase);
         }
-        saveAll();
+        commit();
     }
     public void appendAILog(String requestId, String profileId, String partnerId, String contextCode, String displayedReply) throws IOException, StorageFullException
     {
@@ -740,27 +787,30 @@ public class FileManager
     }
     public void deletePhrase(String profileId, String phraseId) throws InvalidInputException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         int index = findPhraseIndex(phraseId);
         if (index == -1 || !phrases[index].getProfileId().equals(profileId)) //不能删别人 profile 的句子
         {
             throw new InvalidInputException("Phrase not found for this profile: " + phraseId);
         }
         removePhraseAt(index);
-        saveAll();
+        commit();
     }
     public void deleteFeedback(String profileId, String feedbackId) throws InvalidInputException, IOException
     {
+        backup(); //先备份,写档失败可以还原
         int index = findFeedbackIndex(feedbackId);
         if (index == -1 || !feedbacks[index].getProfileId().equals(profileId))
         {
             throw new InvalidInputException("Feedback not found for this profile: " + feedbackId);
         }
         removeFeedbackAt(index);
-        saveAll();
+        commit();
     }
     public void deleteProfileData(String profileId) throws IOException
     {
         // 删掉这个 profile 的所有句子和 feedback (profile 和 partner 本身保留)
+        backup();
         for (int i = phraseCount - 1; i >= 0; i--) //倒着删: 删掉后左移不会跳过下一个
         {
             if (phrases[i].getProfileId().equals(profileId))
@@ -775,7 +825,7 @@ public class FileManager
                 removeFeedbackAt(i);
             }
         }
-        saveAll();
+        commit();
     }
     // ===================== ID: 用现有最大编号 +1,不是用 count =====================
     private static int idNumber(String id, String prefix)

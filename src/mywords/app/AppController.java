@@ -178,8 +178,17 @@ public class AppController
         {
             throw new InvalidInputException("Only the communicator can change this supporter's permission.");
         }
+        boolean oldValue = supporter.isSupporterAuthorized(); //记住旧的值
         supporter.setSupporterAuthorized(authorized); //改授权
-        fileManager.saveUser(supporter); //saveUser 是 upsert -> 同 ID 会更新
+        try
+        {
+            fileManager.saveUser(supporter); //saveUser 是 upsert -> 同 ID 会更新
+        }
+        catch (IOException | StorageFullException | InvalidInputException e) //存不到 -> 物件也要改回去
+        {
+            supporter.setSupporterAuthorized(oldValue);
+            throw e; //再丢给画面显示
+        }
     }
     public void updateProfileSettings(User actingUser, String profileId, String languageStyle, String preferredTone) throws InvalidInputException, StorageFullException, IOException
     {
@@ -190,9 +199,20 @@ public class AppController
         String style = optionalText(languageStyle, "Language style"); //先检查完
         String tone = optionalText(preferredTone, "Preferred tone");
         CommunicationProfile profile = fileManager.getProfile(profileId);
+        String oldStyle = profile.getLanguageStyle(); //记住旧的值,存档失败要改回去
+        String oldTone = profile.getPreferredTone();
         profile.setLanguageStyle(style); //再改
         profile.setPreferredTone(tone);
-        fileManager.saveProfile(profile); //存档
+        try
+        {
+            fileManager.saveProfile(profile); //存档
+        }
+        catch (IOException | StorageFullException | InvalidInputException e) //FileManager 只能还原数组,物件里的字段要我们自己改回去
+        {
+            profile.setLanguageStyle(oldStyle);
+            profile.setPreferredTone(oldTone);
+            throw e;
+        }
     }
     public Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
     {
