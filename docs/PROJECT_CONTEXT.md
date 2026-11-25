@@ -55,6 +55,23 @@ Illustrative keywords: `Tomorrow, Ah Ma, yum cha`. Any candidate generated from 
 - Capacity, corrupt files and permission failures need understandable handling; no silent dropping or overwriting of records.
 - Final committed scope must be reconciled with the report, because S1 requires planned features to work. Mark deferred ideas explicitly instead of presenting unfinished features as delivered.
 
+## Malaysian slang and rojak phrasing
+
+**Core MVP feature** (restored 25 Nov 2026 from the team's earlier docs; role letters updated to the current allocation).
+
+MyWords is designed for everyday Malaysian speech. The first release should accept local terms, informal spelling and mixed-language keywords. When the communicator prefers casual or rojak phrasing, suggestions should preserve local expressions that fit the meaning. For a formal preference, offer suitable wording while preserving the same intent. Use the selected style and conversation context together. The communicator can review, edit or reject every suggestion.
+
+These fictional examples are shared build and acceptance scenarios for A, B, C and D. The candidate in each row shows one acceptable possibility.
+
+| Keywords | Selected style and context | Example candidate or expected behavior |
+| --- | --- | --- |
+| `later, tapau, nasi lemak, for me` | Casual rojak, Friends | `Later can tapau nasi lemak for me?` Keep the supplied local term. |
+| `later, tapau, nasi lemak, for me` | Formal English, Friends | `Could you get me some nasi lemak to take away later?` Keep the request and food name while changing the register. |
+| `tomorrow, Ah Ma, yum cha` | Casual mixed language, Family | `Tomorrow I want to yum cha with Ah Ma.` Keep the familiar terms where they fit. |
+| `nurse, speak, now` | Formal English, Healthcare | `Could I speak with a nurse now?` Follow the chosen style and avoid inventing symptoms or adding advice. |
+
+A checks that saved wording survives restart unchanged and is available offline. B implements the matching prompt behavior (profile `languageStyle`, partner `preferredTone`, context, keywords) and keeps the three-suggestion response contract. C keeps retrieval and fallback free of normalization or translation. D passes the entered words unchanged, lets the user edit before approval, runs the same cases across the GUI, generation and save/reload flow, and records what happened.
+
 ## Innovation hypothesis and evidence limits
 
 The proposed mechanism is **retrieval-based personalization**: Java stores permitted feedback and supplies relevant examples to an existing LLM. No model weights are retrained. The question is whether this mechanism improves meaning preservation and reduces interaction effort in fictional Malaysian communication scenarios compared with a defined generic baseline.

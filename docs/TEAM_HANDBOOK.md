@@ -1,0 +1,285 @@
+# MyWords Team Handbook (v0.2, as built)
+
+Last updated: **25 November 2026, evening (MYT)** by Role A, after an integration review of all code on `main`.
+
+**This is the single source of truth for the code that exists now.** Give this file to your AI assistant together with `AGENTS.md` and your `docs/ROLE_X.md`. When this handbook and an older doc disagree, this handbook wins. `docs/INTEGRATION.md` v0.1 was the *proposal*. Section 4 below lists the *actual* signatures in `src/`.
+
+---
+
+## 0. How to use this with an AI assistant
+
+1. Run `git pull` first. Your AI must see the latest code, not an old copy.
+2. Give it these files, in this order: `AGENTS.md`, `docs/TEAM_HANDBOOK.md` (this file), `docs/ROLE_X.md` (yours), and the Java files you will edit.
+3. Paste this starter prompt, replacing X:
+
+> I am Role X in the MyWords FOP project. Read AGENTS.md and docs/TEAM_HANDBOOK.md first. Section 4 is the real API. Do not rename, remove or change the parameters of any public method listed there. Only edit files in my package (section 3). If I need something from another role's class, tell me what to ask them instead of editing their file. Use plain arrays plus int counters (no ArrayList/HashMap/List/Map/Set/streams), no JSON libraries, and Java 17. Explain the code line by line for a beginner. Before finishing, make sure the whole project compiles.
+
+4. Before you push, **run the app** (`mywords.app.Main`) and click through your feature. If it does not open, do not push.
+
+---
+
+## 1. Current status (what works today)
+
+| Area | Owner | Status |
+| --- | --- | --- |
+| Models, `User` → `Communicator` / `Supporter` inheritance | A | Done |
+| `FileManager`: arrays and counters, CRUD, `.txt` save/load, AI log, `nextId` | A | Done, 39 automated checks passed |
+| `RecordCodec` (escape `\|`, newline, `\`; strict parsing) | A | Done |
+| `DemoData` (fictional Mei / Ah Ma / Dr Lim on first run) | A | Done |
+| `AppController` (session, consent check, stale-result check, AI→fallback) | A | Done; SwingWorker lives in D's screen |
+| `SuggestionService.savedPhraseFallback`, `MemoryManager`, `CommunicationRules`, `FeedbackManager` | C | Done (v1) |
+| `MainFrame` screen, `InputValidator`, `ReportGenerator` | D | Done (v1) |
+| `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser` | **B** | **Not started.** `ask()` always throws, so the app always uses saved phrases |
+
+What you can demo today: choose Mei + Ah Ma → type `kopi` → **Get suggestions** shows `[Saved phrase] Tomorrow kopi with Ah Ma lah.` → approve or edit it → restart → it is still there.
+
+---
+
+## 2. Golden rules (every role, every AI)
+
+1. **Arrays + counters only** for storing objects. No `ArrayList`, `LinkedList`, `HashMap`, `List`, `Map`, `Set` or streams. `StringBuilder` and `java.util.Locale` are fine.
+2. **Do not change another role's public method** (name, parameters, return type, exceptions). Need a change? Agree it in the group chat, then update section 4 in the same commit.
+3. **Every file starts with a `package mywords.xxx;` line.** A missing package line broke the build on 25 Nov.
+4. **Throw our own exceptions**: `InvalidInputException` (bad input), `StorageFullException` (array or log full), `AIServiceException` (anything AI). Catch them in the screen and show a message. Never swallow an exception and pretend it worked.
+5. **Never auto-select, send or save an AI sentence.** The communicator chooses. Approving a sentence and allowing it to be saved or reused are **separate** questions.
+6. **Consent:** only the **Communicator** can turn AI sharing on or off (`controller.canActiveUserChangeConsent()`). A Supporter cannot, even when authorised.
+7. **Privacy:** no real patient data. Fictional demo data only. Never commit `config.txt`, API keys or the `data/` folder.
+8. **No JSON library and no AI SDK.** Use `HttpURLConnection` and String parsing (B).
+9. **Malaysian slang and rojak are a core feature** (section 7). Never "correct" `tapau`, `lah`, `yum cha` and similar into standard English unless the style is formal.
+
+---
+
+## 3. Project structure and ownership
+
+```
+src/mywords/
+  app/        A  Main, AppController, DemoData
+  model/      A  User, Communicator, Supporter, CommunicationProfile, ConversationPartner, Phrase, Codes
+              C  Feedback, Suggestion (shared models; ask A and C before changing fields)
+  storage/    A  FileManager, RecordCodec
+  exception/  A  InvalidInputException, StorageFullException   B  AIServiceException
+  ai/         B  AIHelper, AIConfig, PromptBuilder, AIResponseParser, GenerationRequest
+  logic/      C  SuggestionService, MemoryManager, CommunicationRules, FeedbackManager
+  ui/         D  MainFrame, InputValidator, ReportGenerator (+ new screens)
+data/         runtime .txt files (git-ignored, created automatically)
+docs/         shared docs; this handbook is the current contract
+latest_roles/ ARCHIVE copy of older role docs. Do not give it to your AI.
+```
+
+Run the app with main class **`mywords.app.Main`**. In VS Code, open the `MyWords` folder and press Run above `main`. In NetBeans, use *Java Project with Existing Sources* and add `src`.
+
+---
+
+## 4. The real API (call these exactly as written)
+
+### A: `AppController` (the screen talks to this)
+```java
+void selectSession(User user, String profileId, String partnerId) throws InvalidInputException
+String getActiveProfileId();  String getActivePartnerId();  User getActiveUser()
+int getSessionVersion()                                   // read before starting a background request
+boolean isCurrentSession(int version, String profileId, String partnerId) // check when the result arrives
+boolean canActiveUserChangeConsent()                      // Communicator of this profile only
+boolean canActiveUserEditProfile()                        // polymorphism: User.canEditProfile() + same profile
+Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
+String getLastFallbackMessage()                           // why AI was not used ("" if AI was used)
+FileManager getFileManager()
+```
+`requestSuggestions` flow: validate session and keywords → if the profile has AI sharing **off** → C's `savedPhraseFallback`. Otherwise → C's `MemoryManager` selects up to 3 phrases + 2 feedback → B's `AIHelper.generateSuggestions` → if it throws `AIServiceException` → `savedPhraseFallback`. It never returns null.
+
+### A: `FileManager`
+```java
+void loadAll() throws IOException, InvalidInputException, StorageFullException
+void saveAll() throws IOException
+User[] getUsers();  CommunicationProfile[] getProfiles()
+CommunicationProfile getProfile(String profileId) throws InvalidInputException
+ConversationPartner[] getPartners(String profileId) throws InvalidInputException
+ConversationPartner getPartner(String profileId, String partnerId) throws InvalidInputException
+Phrase[]   getPhrases(String profileId, String partnerId) throws InvalidInputException
+Feedback[] getFeedback(String profileId, String partnerId) throws InvalidInputException
+void saveUser / saveProfile / savePartner / savePhrase(...) throws InvalidInputException, StorageFullException, IOException  // upsert by ID
+void recordDecision(Feedback feedback, Phrase optionalPhraseOrNull) throws InvalidInputException, StorageFullException, IOException
+void appendAILog(String requestId, String profileId, String partnerId, String contextCode, String displayedReply) throws IOException, StorageFullException
+void deletePhrase(String profileId, String phraseId) / deleteFeedback(String profileId, String feedbackId) throws InvalidInputException, IOException
+void deleteProfileData(String profileId) throws IOException
+String nextId(String prefix)   // "U","P","CP","PH","FB" -> e.g. "PH004". ALWAYS use this for new IDs
+```
+- Getters return **copies with exact length**. Use `.length`. "No match" gives an empty array, never null.
+- Every save writes the `.txt` files immediately.
+- A phrase or feedback must use the **same context as its partner**, otherwise `InvalidInputException`.
+
+### B: `AIHelper` and friends (to implement)
+```java
+String ask(String prompt) throws AIServiceException                    // ONLY place with HttpURLConnection
+Suggestion[] generateSuggestions(GenerationRequest r) throws AIServiceException, InvalidInputException, IOException, StorageFullException
+static AIConfig load(String path) throws AIServiceException            // reads config.txt
+String PromptBuilder.build(GenerationRequest r)
+String AIResponseParser.extractContent(String providerJson) throws AIServiceException
+String[] AIResponseParser.parseCandidates(String content) throws AIServiceException // exactly 3 distinct non-empty
+```
+`GenerationRequest` getters: `getRequestId, getProfileId, getPartnerId, getContextCode, getKeywords, getLanguageStyle, getPreferredTone, isAiSharingEnabled, getAllowedPhrases, getAllowedFeedback`.
+
+### C: logic
+```java
+Suggestion[] SuggestionService.savedPhraseFallback(String requestId, String keywords, Phrase[] saved) // max 3, source "SAVED"
+boolean      SuggestionService.isValidCandidateSet(Suggestion[] c)    // exactly 3 distinct valid sentences
+Phrase[]   MemoryManager.selectPhrases(String keywords, String contextCode, Phrase[] candidates, int limit)    // max 3
+Feedback[] MemoryManager.selectFeedback(String keywords, String contextCode, Feedback[] candidates, int limit) // max 2
+Feedback FeedbackManager.createFeedback(id, profileId, partnerId, contextCode, keywords, candidateText,
+                                        decisionCode, reasonCode, confirmedText, boolean allowAIReuse) throws InvalidInputException // used by UI
+Feedback FeedbackManager.createDecision(... , boolean freshConfirmation, boolean allowAIReuse, long createdAt) // C's full version, throws IllegalArgumentException
+static boolean CommunicationRules.hasText / isValidKeywords / isValidSentence / isKnownContext / isKnownReason / maySharePhrase / mayShareFeedback
+```
+
+### D: screen helpers
+```java
+String InputValidator.validateKeywords(String raw) / validateSentence(String raw) throws InvalidInputException
+String ReportGenerator.buildReport(Phrase[] selected);  void writeReport(String text, String path) throws IOException
+```
+
+### Models (A; Feedback and Suggestion: C)
+Constructors (field order = file column order):
+```java
+new Communicator(userId, displayName, profileId)
+new Supporter(userId, displayName, profileId, boolean supporterAuthorized)
+new CommunicationProfile(profileId, ownerUserId, displayName, languageStyle, preferredTone, boolean aiSharingEnabled)
+new ConversationPartner(partnerId, profileId, contextCode, label, preferredTone)
+new Phrase(phraseId, profileId, partnerId, contextCode, keywords, confirmedText, boolean allowAIReuse, long createdAt)
+new Feedback(feedbackId, profileId, partnerId, contextCode, keywords, candidateText, decisionCode, reasonCode, confirmedText, boolean allowAIReuse, long createdAt)
+new Suggestion(suggestionId, requestId, text, sourceCode)   // sourceCode = Codes.SOURCE_AI ("AI") or Codes.SOURCE_SAVED ("SAVED")
+```
+
+---
+
+## 5. Codes, IDs, files and config
+
+| Item | Allowed values |
+| --- | --- |
+| Context | `FAMILY`, `FRIENDS`, `HEALTHCARE` |
+| Decision (stored) | `APPROVE`, `EDIT`, `REJECT`. `NONE_OF_THESE` exists in C's FeedbackManager but is **not stored**; the screen just clears the selection |
+| Reason | `NONE` (approve only), `WRONG_MEANING`, `WRONG_TONE`, `WRONG_PERSON_CONTEXT`, `OTHER_UNSURE` |
+| EDIT rule | Must have a non-empty confirmed (edited) text |
+| REJECT rule | Reason must not be `NONE` |
+| IDs | `U001`, `P001`, `CP001`, `PH001`, `FB001` from `fileManager.nextId(prefix)`; `REQ...` for requests (controller / B) |
+
+**Data files** (UTF-8, `data/`, first line is the header). Fields are separated by `|`, and `\ | newline tab` are escaped by `RecordCodec`. **Only `FileManager` reads or writes these files.**
+```
+users.txt     #MyWords|1|USERS     userId|COMMUNICATOR or SUPPORTER|displayName|profileId|supporterAuthorized
+profiles.txt  #MyWords|1|PROFILES  profileId|ownerUserId|displayName|languageStyle|preferredTone|aiSharingEnabled
+partners.txt  #MyWords|1|PARTNERS  partnerId|profileId|contextCode|label|preferredTone
+phrases.txt   #MyWords|1|PHRASES   phraseId|profileId|partnerId|contextCode|keywords|confirmedText|allowAIReuse|createdAt
+feedback.txt  #MyWords|1|FEEDBACK  feedbackId|profileId|partnerId|contextCode|keywords|candidateText|decisionCode|reasonCode|confirmedText|allowAIReuse|createdAt
+ai_log.txt    #MyWords|1|AI_LOG    createdAt|requestId|profileId|partnerId|contextCode|displayedReply   (5 MB cap)
+```
+To reset demo data: close the app, delete the `data` folder, then run again.
+
+**`config.txt`** (B; copy from `config.example.txt` and never commit it). These keys are the contract. B's `AIConfig` must read exactly these:
+`AI_API_KEY`, `AI_ENDPOINT`, `AI_MODEL`, `CONNECT_TIMEOUT_MS` (10000), `READ_TIMEOUT_MS` (20000), `MAX_RESPONSE_BYTES` (65536). A blank value or one starting with `REPLACE_` means "AI off" and must throw `AIServiceException`.
+
+---
+
+## 6. The main flows (who does what)
+
+**Get suggestions** (D → A → C/B):
+1. D validates keywords, then stores `version = controller.getSessionVersion()` plus the active profile and partner.
+2. D runs `controller.requestSuggestions(keywords)` inside a `SwingWorker` (off the UI thread).
+3. When the result arrives, D calls `controller.isCurrentSession(version, profile, partner)`. If false, it discards the result.
+4. D shows each `Suggestion` labelled `[AI suggestion]` or `[Saved phrase]` with nothing pre-selected, and shows `getLastFallbackMessage()` in the status bar.
+
+**B's `generateSuggestions`** (the contract D and A rely on):
+build prompt → `ask` → `extractContent` → `parseCandidates` (exactly 3) → for each sentence `fileManager.appendAILog(...)` **before** returning → return 3 `Suggestion`s with source `"AI"`. Any problem → throw `AIServiceException` (never return fake or partial results).
+
+**Approve / Edit / Reject** (D → C → A): the screen only works on the session confirmed with "Use this conversation". C's `createFeedback` builds and validates the record, then A's `recordDecision(feedback, phraseOrNull)` stores both together. Saving the phrase, saving the feedback and allowing AI reuse are each asked separately.
+
+**Manual message**: saved as a `Phrase` only (no Feedback, because there is no candidate), using the keywords typed in the Keywords box so it can be found again.
+
+---
+
+## 7. Malaysian slang and rojak (core MVP feature, restored)
+
+MyWords is for everyday Malaysian speech. Accept local terms, informal spelling and mixed-language keywords. When the communicator's style is casual or rojak, keep the local expressions that fit the meaning. When the style is formal, change the register but keep the same intent. Always combine the **profile's `languageStyle`** with the **partner's `preferredTone` and context**. The communicator can review, edit or reject every suggestion.
+
+Shared fictional test cases. Every role tests these:
+
+| Keywords | Style and context | Acceptable example / expected behaviour |
+| --- | --- | --- |
+| `later, tapau, nasi lemak, for me` | Casual rojak, Friends | `Later can tapau nasi lemak for me?` (keep the local term) |
+| `later, tapau, nasi lemak, for me` | Formal English, Friends | `Could you get me some nasi lemak to take away later?` |
+| `tomorrow, Ah Ma, yum cha` | Casual mixed, Family | `Tomorrow I want to yum cha with Ah Ma.` |
+| `nurse, speak, now` | Formal English, Healthcare | `Could I speak with a nurse now?` (no invented symptoms or advice) |
+
+- **A:** stores and reloads the exact wording (verified: `Ah Ma|kopi`, Chinese, BM, emoji and newlines survive a restart).
+- **B:** the prompt must include `languageStyle`, `preferredTone`, context and keywords as given. It must say to keep the supplied local words in casual style and must not invent facts.
+- **C:** do not normalise or translate saved text. Keyword matching is case-insensitive, word-based.
+- **D:** never auto-correct input. Run the 4 cases above through the GUI and record the results for the report.
+
+---
+
+## 8. What each role must do next (deadline: offline milestone 29 Nov, AI milestone 5 Dec, code freeze 8 Dec)
+
+### Role A: core data and integration
+- [ ] Profile and partner **creation** methods for the UI (add to controller, using `nextId` + `saveProfile` / `savePartner`), so D can build an "add profile / partner" screen.
+- [ ] Make `saveX` roll back the in-memory change if writing the file fails (currently memory changes even when the save throws).
+- [ ] Keep this handbook and `docs/DECISIONS.md` updated; final clean build and run instructions in README.
+- [ ] Evidence: inheritance through a `User` reference, restart persistence, `StorageFullException` demo.
+
+### Role B: AI (biggest open item, start now)
+- [ ] `AIConfig.load("config.txt")` using the keys in section 5; a missing file, blank value or `REPLACE_` value throws `AIServiceException`.
+- [ ] `AIHelper.ask`: `HttpURLConnection`, POST, timeouts from config, read at most `MAX_RESPONSE_BYTES`, check HTTP status (401/429/5xx → `AIServiceException` with a safe message; never print the key or the raw body).
+- [ ] `PromptBuilder.build`: section 7 rules. Ask for **only** a JSON array of exactly 3 strings. Label memories as examples and rejected text as rejected.
+- [ ] `AIResponseParser`: hand-written String/char scanning, handling `\"`, `\\`, `\n`, `\uXXXX`. No `split(",")`.
+- [ ] Keep `generateSuggestions` exactly as in section 6 (log before return).
+- [ ] Decide the provider, endpoint and model with the team and write them in `docs/DECISIONS.md`. Commit **only** `config.example.txt`.
+- [ ] Until it works, the app must still run (it does: the fallback is automatic).
+
+### Role C: communication logic
+- [ ] Unit-check `savedPhraseFallback` and `MemoryManager` with the section 7 cases and with HEALTHCARE isolation (a FAMILY request never returns HEALTHCARE records).
+- [ ] Decide with D whether REJECT feedback **without** a correction may be shared with AI (currently `mayShareFeedback` returns false for it) and record the decision.
+- [ ] Keep `createFeedback` (the UI depends on it). If you change `createDecision`, keep `createFeedback` working.
+- [ ] Prepare the comparison scenarios (generic vs memory) together with D for the report.
+
+### Role D: screens and report
+- [ ] **Profile settings screen**: edit `languageStyle` / `preferredTone`, allowed only when `controller.canActiveUserEditProfile()` is true. This is our visible polymorphism demo (an unauthorised Supporter is refused).
+- [ ] **Add profile / partner screen** (after A adds the controller methods).
+- [ ] Show who the active user is. Keep the rule that only the Communicator can change AI sharing (already enforced).
+- [ ] Run the section 7 test cases and the bad-input cases; take screenshots for the report.
+- [ ] Keep using `controller` methods for the session. Do not add file reading or writing in the UI.
+
+### Everyone
+- [ ] Each member explains their own code in the 5–7 minute video.
+- [ ] Lecturer questions (`docs/OPEN_QUESTIONS.md` Q01–Q05) must be answered and recorded.
+
+---
+
+## 9. Git workflow (avoid breaking each other)
+
+```
+git pull --no-rebase --no-edit       # 1. always start with the latest code
+# ... code, then RUN the app ...
+git status                           # 2. check: only your files should be listed
+git add src/mywords/<your package>   # 3. add only your own files
+git commit -m "Role X: what you did"
+git pull --no-rebase --no-edit       # 4. get anything new before pushing
+git push
+```
+- A file shows as "modified" but you never touched it? That is usually only line endings. Do not add it. Run `git restore <file>`.
+- Do not commit `.vscode/`, `nbproject/private/`, `out/`, `bin/`, `data/` or `config.txt` (all git-ignored).
+- Changing a shared public method? Message the group **before** pushing, and update section 4 in the same commit.
+
+---
+
+## 10. Integration fixes made on 25 Nov (so nobody is surprised)
+
+| File (owner) | Change | Why |
+| --- | --- | --- |
+| `logic/FeedbackManager.java` (C) | Added the missing `package mywords.logic;` and imports. Added `createFeedback(...)`, which calls C's `createDecision` and converts `IllegalArgumentException` → `InvalidInputException` | The class did not compile; the UI calls `createFeedback` |
+| `ui/MainFrame.java` (D) | `GridLayout(2,3)` → `(3,3)` | Dropdowns were misaligned |
+| `ui/MainFrame.java` (D) | A manual message is saved as a Phrase only, with the typed keywords | C's rules need a candidate for Feedback; empty keywords made the phrase impossible to find |
+| `ui/MainFrame.java` (D) | Saving uses the confirmed session; stale AI results are discarded; only the Communicator can change AI sharing | Prevents saving to the wrong partner and a Supporter granting consent |
+| `app/AppController.java` (A) | Added session getters, `getSessionVersion`, `isCurrentSession`, `canActiveUserChangeConsent` | Used by the fixes above |
+| `AGENTS.md`, `docs/PROJECT_CONTEXT.md`, `docs/INTEGRATION.md`, `config.example.txt`, `.gitignore` | Role letters corrected; Malaysian slang section restored; `.vscode/` and `bin/` ignored | The old AGENTS.md used outdated role letters; the slang section was lost when docs were replaced |
+
+## 11. Known limitations (be honest in the report)
+- The 5 data files are written one after another. A crash in the middle can leave them partly updated (no multi-file atomicity).
+- If a save throws, the in-memory change is not yet rolled back (A, to do).
+- Choosing a profile is not secure login. The Supporter authorisation is a demo of rules, not security.
+- Retrieval is keyword overlap, not model training. Any accuracy improvement must be measured, never assumed.

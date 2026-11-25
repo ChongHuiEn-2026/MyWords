@@ -12,6 +12,7 @@ import mywords.exception.StorageFullException;
 import mywords.logic.MemoryManager;
 import mywords.logic.SuggestionService;
 import mywords.model.CommunicationProfile;
+import mywords.model.Communicator;
 import mywords.model.ConversationPartner;
 import mywords.model.Feedback;
 import mywords.model.Phrase;
@@ -29,6 +30,7 @@ public class AppController
     private String activeProfileId;
     private String activePartnerId;
     private String lastFallbackMessage = ""; //AI 失败时给画面显示的原因
+    private int sessionVersion = 0; //每次换 session 就 +1,用来挡掉迟到的旧 AI 回复
     public AppController(FileManager fileManager, AIHelper aiHelper, MemoryManager memoryManager, SuggestionService suggestionService)
     {
         this.fileManager = fileManager;
@@ -50,6 +52,32 @@ public class AppController
         activeUser = user;
         activeProfileId = profileId;
         activePartnerId = partnerId;
+        sessionVersion++; //session 换了
+    }
+    public String getActiveProfileId()
+    {
+        return activeProfileId;
+    }
+    public String getActivePartnerId()
+    {
+        return activePartnerId;
+    }
+    public User getActiveUser()
+    {
+        return activeUser;
+    }
+    public int getSessionVersion()
+    {
+        return sessionVersion; //画面在送出请求前记下来,回来时比较
+    }
+    public boolean isCurrentSession(int version, String profileId, String partnerId)
+    {
+        return version == sessionVersion && profileId != null && profileId.equals(activeProfileId) && partnerId != null && partnerId.equals(activePartnerId); //版本 + profile + partner 都一样才算同一个 session
+    }
+    public boolean canActiveUserChangeConsent()
+    {
+        // 同意 (AI 分享) 只能由 communicator 本人改,supporter 就算有授权也不行 (PRIVACY.md)
+        return activeUser instanceof Communicator && activeProfileId != null && activeProfileId.equals(activeUser.getProfileId());
     }
     public boolean canActiveUserEditProfile()
     {

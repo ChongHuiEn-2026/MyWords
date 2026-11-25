@@ -1,6 +1,6 @@
-# MyWords proposed flat configuration - no Java loader is implemented yet.
+# MyWords AI configuration - read by Role B's AIConfig (see docs/TEAM_HANDBOOK.md section 5).
 # Copy to config.txt locally only. Never commit the real file or credentials.
-# C must confirm provider, schema and parser policy with the team first.
+# B must confirm provider, schema and parser policy with the team first.
 # Parse non-comment lines at the first '='; trim key/value, reject duplicate keys.
 # Blank or REPLACE_ values disable online AI. No automatic network calls on startup.
 AI_API_KEY=REPLACE_WITH_LOCAL_KEY

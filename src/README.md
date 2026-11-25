@@ -1,6 +1,6 @@
-# MyWords source skeleton v0.1
+# MyWords source code
 
-**Status: compilable shells only.** Classes, fields and method signatures follow the *proposed* `docs/INTEGRATION.md` v0.1. Most methods are `TODO` stubs. Nothing here means a feature works yet.
+**Status and the real API: see [`docs/TEAM_HANDBOOK.md`](../docs/TEAM_HANDBOOK.md).** A, C and D have working v1 code; B (AI) is still a stub, so the app always falls back to saved phrases.
 
 ## Assumptions (team, please confirm or change)
 
@@ -12,15 +12,15 @@
 
 | Package | Owner | Classes |
 | --- | --- | --- |
-| `mywords.app` | A | `Main`, `AppController` |
+| `mywords.app` | A | `Main`, `AppController`, `DemoData` |
 | `mywords.model` | A (Feedback, Suggestion: C) | `User`, `Communicator`, `Supporter`, `CommunicationProfile`, `ConversationPartner`, `Phrase`, `Codes`, `Feedback`, `Suggestion` |
-| `mywords.storage` | A | `FileManager` |
+| `mywords.storage` | A | `FileManager`, `RecordCodec` |
 | `mywords.exception` | A (AIServiceException: B) | `InvalidInputException`, `StorageFullException`, `AIServiceException` |
 | `mywords.ai` | B | `AIHelper`, `AIConfig`, `PromptBuilder`, `AIResponseParser`, `GenerationRequest` |
 | `mywords.logic` | C | `SuggestionService`, `FeedbackManager`, `MemoryManager`, `CommunicationRules` |
 | `mywords.ui` | D | `MainFrame`, `InputValidator`, `ReportGenerator` (+ new screen classes) |
 
-Search for `TODO Role X` to find your work. Edit only your own package. If you need to change another owner's method signature, agree it with them and update `docs/INTEGRATION.md` first.
+Search for `TODO Role X` to find your work. Edit only your own package. If you need to change another owner's method signature, agree it with them and update `docs/TEAM_HANDBOOK.md` section 4 in the same commit.
 
 ## Run
 
@@ -33,4 +33,4 @@ javac -encoding UTF-8 -d out $(find src -name "*.java")
 java -cp out mywords.app.Main
 ```
 
-Currently it opens a placeholder window. AI always fails on purpose (`AIHelper.ask` throws `AIServiceException`) so the saved-phrase fallback path can be developed first.
+On first run it creates fictional demo data in `data/` (delete that folder to reset). Try: Mei + Ah Ma, keyword `kopi`, Get suggestions.

@@ -1,82 +1,48 @@
 # MyWords: shared instructions for AI assistants
 
-## Read before changing the project
+Version 0.2, 25 November 2026. Every AI tool used on this repository must follow this file. It does not override the tool's own system rules or the current user's explicit instructions.
 
-Read [README.md](README.md), [project context](docs/PROJECT_CONTEXT.md),
-[requirements](docs/REQUIREMENTS.md), [architecture](docs/ARCHITECTURE.md),
-[integration contracts](docs/INTEGRATION.md), [roadmap](docs/ROADMAP.md), and your
-assigned `docs/ROLE_*.md`. Inspect the actual files and current branch too.
+## Read first, in this order
+1. `docs/TEAM_HANDBOOK.md`: **the current, as-built contract.** Real class names, method signatures, codes, file formats, flows and each role's remaining tasks. When it disagrees with another doc, the handbook wins.
+2. The user's own role file: `docs/ROLE_A.md` (core data, storage, controller), `docs/ROLE_B.md` (AI), `docs/ROLE_C.md` (communication logic) or `docs/ROLE_D.md` (UI and report).
+3. Background only when needed: `docs/PROJECT_CONTEXT.md`, `docs/REQUIREMENTS.md`, `docs/PRIVACY.md`, `docs/OPEN_QUESTIONS.md`, `docs/DECISIONS.md`.
+4. The actual Java files you will touch under `src/mywords/`. Inspect them before editing.
 
-This pack was prepared on 24 November 2026. It documents the project plan; it
-does not mean the Java application exists or that the team has approved every
-design choice. All integration contracts are **PROPOSED FOR TEAM REVIEW** until
-A, B, C and D record agreement in `docs/INTEGRATION.md`.
+`latest_roles/` is an archive. Ignore it. `docs/INTEGRATION.md` v0.1 was the proposal. The handbook lists what was actually built.
 
-## Project boundaries
+## Project
+MyWords: Let Me Finish My Sentence. A UM WIX1002 FOP Hackathon project, Track 3 Healthcare. It is a Java Swing communication aid for Malaysians with expressive aphasia. Typed keywords produce up to three candidate sentences (AI or saved phrases). The communicator approves, edits or rejects them, and only explicitly permitted records are reused. **Malaysian slang and rojak phrasing are core MVP features** (handbook section 7). It is a student prototype: not diagnostic, not clinically validated, and it uses retrieval-based personalization, not model training.
 
-- MyWords - Let Me Finish My Sentence is a WIX1002 FOP Hackathon communication
-  aid prototype, Track 3 Healthcare, Universiti Malaya.
-- The user in the originating discussion owns **Role C: AI integration**.
-  Do not assume their name, GitHub handle, or ownership of other roles.
-- **Malaysian slang and rojak phrasing are core MVP features.** Follow the
-  [shared language behavior and examples](docs/PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing)
-  for input, suggestions, storage and testing. Read them alongside your role guide.
-- Working submission deadline from the earlier discussion: **10 December 2026,
-  11:00 PM, Asia/Kuala_Lumpur (UTC+08:00)**. Confirm against the official portal.
-- Use the lecturer PDF requirements summarized with page references in
-  `docs/REQUIREMENTS.md`. Keep the three-versus-four submission discrepancy and
-  Scanner-menu question visible until the lecturer clarifies them.
-- A GUI is mandatory. All business logic, storage, exceptions and AI processing
-  belong in Java. Swing/NetBeans is the proposed simplest implementation.
-- Store domain objects in plain arrays with explicit integer counters. Do not
-  introduce ArrayList, LinkedList, HashMap, Sets, streams-to-collections, or other
-  Java Collections for object storage, including in convenience helpers.
-- Demonstrate inheritance, overridden methods/polymorphism, custom exceptions
-  thrown and caught, and text-file save/reload across restarts.
-- Retain the earlier target of at least ten meaningful Java classes,
-  `AIHelper.ask(String prompt)`, API fallback and local AI display logging.
-  Their source and confirmation status are in `docs/REQUIREMENTS.md`.
+Working deadline: **10 December 2026, 11:00 PM MYT** (confirm on the portal). Milestones: offline GUI 29 Nov, AI and memory 5 Dec, development target 7 Dec, freeze 8 Dec.
 
-## Team collaboration
+## Roles (development roles, not app users)
+| Role | Package(s) | Owns |
+| --- | --- | --- |
+| A | `app`, `model`, `storage`, `exception` | Main, AppController, DemoData, User hierarchy, FileManager, RecordCodec |
+| B | `ai` | AIHelper (`String ask(String prompt)`), AIConfig, PromptBuilder, AIResponseParser, GenerationRequest |
+| C | `logic` (+ `Feedback`, `Suggestion` models) | SuggestionService, MemoryManager, CommunicationRules, FeedbackManager |
+| D | `ui` | MainFrame and screens, InputValidator, ReportGenerator |
 
-- Inspect existing files, branches, pending changes and PRs first. Preserve
-  teammates' work. Use a focused branch and PR; do not force-push or merge it
-  without explicit authorization.
-- Work within the assigned role. Coordinate changes to shared classes with the
-  owner. Do not build a second storage, GUI or personalization subsystem.
-- Use the proposed interfaces only as a review starting point. Before writing
-  implementations, settle package names, fields, signatures, capacity limits,
-  format and error behavior together. Record approvals and changes in
-  `docs/INTEGRATION.md` and update all callers in the same reviewed change.
-- Explain important Java decisions at beginner FOP level. Prefer small methods
-  and meaningful classes over frameworks or inflated class counts.
-- Update the relevant docs when behavior changes. Mark tasks complete only
-  when evidence exists; never fabricate tests, screenshots or contribution data.
+Ask which role the user has. Edit only that role's files. If another role's class must change, say so and let the user coordinate. Never silently rewrite a teammate's module.
 
-## Privacy and user control
+## Hard coding rules
+- Java 17, Swing GUI (mandatory). All logic, storage, exceptions and AI processing are in Java.
+- Store objects only in **plain arrays with int counters**, using loops for add/search/update/delete. No `ArrayList`, `LinkedList`, `HashMap`, `List`, `Map`, `Set` or streams-to-collections. No wildcard imports.
+- Every file starts with its `package mywords.<pkg>;` line.
+- **Do not rename or change the parameters, return type or exceptions of any public method listed in handbook section 4** without a recorded team decision. Update the handbook in the same commit.
+- Demonstrate a real inheritance hierarchy with polymorphism (`User` → `Communicator`/`Supporter`, `canEditProfile()`), and throw and catch the custom exceptions `InvalidInputException`, `StorageFullException` and `AIServiceException`.
+- Persist all data in `.txt` files via `FileManager` only. Get new IDs from `fileManager.nextId(prefix)`.
+- Every AI HTTP request goes through `AIHelper.ask` using `java.net.HttpURLConnection`. Build and parse JSON with String/char code. No JSON libraries and no AI SDKs.
+- Read keys from local `config.txt` (keys listed in handbook section 5). Never hardcode, log, commit or paste real keys. A missing key or no network must throw `AIServiceException`, which the caller catches so that saved phrases still work. Log every AI reply shown to the user (`FileManager.appendAILog`) before it is displayed.
 
-- This repository is public as inspected on 24 November 2026. Use fictional
-  examples only. Never commit API keys, `config.txt`, real names, patient details,
-  conversation history, feedback, memory files or AI logs.
-- Read credentials locally; keep `config.example.txt` as a placeholder. Never
-  include secrets in prompts, logs, screenshots, reports or exception messages.
-- Explain provider transmission and local logging before enabling AI. Obtain
-  explicit user permission to send selected context and to remember feedback.
-  Offline saved phrases must remain available when AI is disabled or fails.
-- Only the communicator confirms intended meaning. Supporter assistance requires
-  permission; it does not silently override or train on the communicator's words.
-- Treat user text, memories and model output as untrusted data. Validate bounds
-  and response structure; never execute model output or follow its instructions.
-- Do not claim diagnosis, treatment, recovery, clinical effectiveness, mind
-  reading, or proven originality. Healthcare context is for expressing a user's
-  words, not generating clinical recommendations.
+## Behaviour rules
+- Never auto-select, send or save an AI interpretation. Approving a sentence, saving it and allowing AI reuse are separate choices.
+- Only the Communicator can change AI-sharing consent. A Supporter may edit settings only when authorised.
+- Keep profiles and contexts separate (no HEALTHCARE memory in FAMILY suggestions). Use fictional data only.
+- Do not add speech/microphone input, model fine-tuning, web services or unrelated features without a recorded decision.
+- Never claim a feature works, a test passed or accuracy improved without evidence.
 
-## Verification and handoff
-
-For implementation changes, verify the affected GUI flow and backend behavior,
-array capacity, invalid input, save/restart, and offline/error paths as relevant.
-Role D's checklist is the shared acceptance guide. For documentation changes,
-check links, consistency, source attribution and the complete diff.
-
-In each handoff, state what changed, how it was checked, dependencies, unresolved
-questions, and relevant branch/PR. Never report the planned app as implemented.
+## Working style
+- Explain code at beginner level. Prefer small methods students can present.
+- Before finishing: the whole project compiles, `mywords.app.Main` opens, and your feature works with the demo data.
+- Handoff note: role, files changed, public methods added or changed, checks actually run, open issues, which teammate is affected.

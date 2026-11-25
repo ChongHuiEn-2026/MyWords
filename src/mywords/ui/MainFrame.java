@@ -204,6 +204,9 @@ public class MainFrame extends JFrame {
         try { validator.validateKeywords(raw); }
         catch (InvalidInputException ex) { showError("Check the keywords", ex); keywords.requestFocus(); return; }
         lastKeywords = raw.trim();
+        final int requestVersion = controller.getSessionVersion(); // remember which session asked
+        final String requestProfileId = controller.getActiveProfileId();
+        final String requestPartnerId = controller.getActivePartnerId();
         setBusy(true, "Loading suggestions. Your text remains available to edit.");
         new SwingWorker<Suggestion[], Void>() {
             @Override protected Suggestion[] doInBackground() throws Exception { return controller.requestSuggestions(lastKeywords); }
@@ -211,6 +214,10 @@ public class MainFrame extends JFrame {
                 setBusy(false, "Review a possibility; nothing is selected automatically.");
                 try {
                     Suggestion[] result = get();
+                    if (!controller.isCurrentSession(requestVersion, requestProfileId, requestPartnerId)) { // conversation changed while waiting
+                        status.setText("The conversation changed, so the old suggestions were discarded.");
+                        return;
+                    }
                     candidateModel.clear();
                     if (result != null) for (Suggestion s : result) candidateModel.addElement(s);
                     String fallback = controller.getLastFallbackMessage();
@@ -250,7 +257,7 @@ public class MainFrame extends JFrame {
         try { validator.validateSentence(manualMessage.getText()); }
         catch (InvalidInputException ex) { showError("Check your message", ex); manualMessage.requestFocus(); return; }
         // Manual text is a communicator-authored, explicitly confirmed message; it is not an AI candidate.
-        lastKeywords = "";
+        lastKeywords = keywords.getText().trim(); // keep the typed keywords so this phrase can be found again later
         saveDecision(null, "APPROVE", "NONE", manualMessage.getText());
     }
     private void saveDecision(Suggestion candidate, String decision, String reason, String confirmedText) {
@@ -278,16 +285,22 @@ public class MainFrame extends JFrame {
             CommunicationProfile profile = (CommunicationProfile)profiles.getSelectedItem();
             ConversationPartner partner = (ConversationPartner)partners.getSelectedItem();
             if (profile == null || partner == null) throw new InvalidInputException("Select a conversation first.");
+            if (!profile.getProfileId().equals(controller.getActiveProfileId()) || !partner.getPartnerId().equals(controller.getActivePartnerId())) {
+                throw new InvalidInputException("Press \"Use this conversation\" for the selected profile and partner first.");
+            }
             long now = System.currentTimeMillis();
-            Feedback feedback = feedbackManager.createFeedback(fileManager.nextId("FB"), profile.getProfileId(), partner.getPartnerId(),
-                    partner.getContextCode(), lastKeywords, textForRecord, decision, reason,
-                    "APPROVE".equals(decision) || "EDIT".equals(decision) ? confirmedText : "", feedbackReuse);
+            Feedback feedback = null; // manual messages have no candidate, so they are saved only as phrases
+            if (saveFeedback && candidate != null) {
+                feedback = feedbackManager.createFeedback(fileManager.nextId("FB"), profile.getProfileId(), partner.getPartnerId(),
+                        partner.getContextCode(), lastKeywords, textForRecord, decision, reason,
+                        "APPROVE".equals(decision) || "EDIT".equals(decision) ? confirmedText : "", feedbackReuse);
+            }
             Phrase phrase = null;
             if (savePhrase && confirmedText != null && !confirmedText.trim().isEmpty()) {
                 phrase = new Phrase(fileManager.nextId("PH"), profile.getProfileId(), partner.getPartnerId(),
                         partner.getContextCode(), lastKeywords, confirmedText, phraseReuse, now);
             }
-            if (saveFeedback) {
+            if (feedback != null) {
                 fileManager.recordDecision(feedback, phrase);
             } else if (phrase != null) {
                 fileManager.savePhrase(phrase);
@@ -377,6 +390,10 @@ public class MainFrame extends JFrame {
     private void toggleProfileAISharing() {
         CommunicationProfile profile = (CommunicationProfile)profiles.getSelectedItem();
         if (profile == null) { showError("Choose a profile first.", null); return; }
+        if (!profile.getProfileId().equals(controller.getActiveProfileId()) || !controller.canActiveUserChangeConsent()) {
+            showError("Only the communicator can change AI sharing. Select the communicator as Current user and press \"Use this conversation\".", null);
+            return;
+        }
         boolean enabled = !profile.isAiSharingEnabled();
         String message = enabled
                 ? "Enable sending current keywords and permitted memories to the AI service for this profile?"

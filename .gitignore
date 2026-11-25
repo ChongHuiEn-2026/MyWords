@@ -54,3 +54,7 @@ Thumbs.db
 
 # Fictional fixtures may be committed under examples/data/.
 # The original Java ignore patterns above are preserved.
+
+# Editor settings (each member keeps their own)
+.vscode/
+/bin/

@@ -1,5 +1,7 @@
 # Proposed integration contract v0.1
 
+> **Superseded for current code (25 Nov 2026):** the methods that actually exist are listed in [TEAM_HANDBOOK.md](TEAM_HANDBOOK.md) section 4. Where this proposal and the handbook differ, follow the handbook. Role letters below were corrected to the current allocation (A storage/controller, B AI, C logic, D UI).
+
 **Pending team review. This is a concrete starting proposal, not an existing or agreed API.** Signatures below are documentation sketches, not Java implementation. All owners should reconcile them before parallel coding. Changes require one updated contract and coordinated consumers; see [DECISIONS.md](DECISIONS.md).
 
 ## 1. Shared conventions
@@ -32,7 +34,7 @@
 
 Declarations are illustrative public instance methods. Add constructors/getters only after owner review. `IOException` refers to `java.io.IOException`; signatures use no Collections.
 
-### B: FileManager
+### A: FileManager
 
 ```java
 void loadAll() throws IOException, InvalidInputException, StorageFullException;
@@ -77,7 +79,7 @@ Feedback[] selectFeedback(String keywords, String contextCode,
                            Feedback[] candidates, int limit);
 ```
 
-Inputs must already be restricted to the active profile and selected partner by B/A. D still checks context and `allowAIReuse`. Proposed combined budget: up to 3 phrases + 2 feedback records (5 total), deterministic ranking by keyword overlap and recency as a tie-break. Exclude unrelated/empty/withdrawn records; do not fill unused capacity with private or irrelevant examples. This is a simple retrieval proposal, not a proven learning algorithm. Sorting/searching uses loops/arrays.
+Inputs must already be restricted to the active profile and selected partner by A. C still checks context and `allowAIReuse`. Proposed combined budget: up to 3 phrases + 2 feedback records (5 total), deterministic ranking by keyword overlap and recency as a tie-break. Exclude unrelated/empty/withdrawn records; do not fill unused capacity with private or irrelevant examples. This is a simple retrieval proposal, not a proven learning algorithm. Sorting/searching uses loops/arrays.
 
 ### B: AIHelper
 
@@ -97,11 +99,11 @@ Suggestion[] generateSuggestions(GenerationRequest request)
 ```text
 validate active profile, partner, keywords and AI consent
 snapshot request + allowed retrieval inputs
-ask D for bounded relevant permitted memories
+ask C for bounded relevant permitted memories
 run B.generateSuggestions off the Swing UI thread
 check request still matches active session/context
 display returned candidates or catch errors and offer fallback
-after human confirmation, pass only consented records to B
+after human confirmation, pass only consented records to A's FileManager
 ```
 
 A does not parse JSON, C does not implement a second memory store, D does not make network calls, B does not decide an AI interpretation is correct. D owns the screens and report export; C owns the phrase/feedback retrieval logic.
@@ -126,7 +128,7 @@ Prompt rules: candidate reconstruction only; no invented facts; preserve user-se
 
 ## 5. Proposed local text-file schema v1
 
-B owns the parser/writer; everyone uses the same escaping. UTF-8, one record per physical line, pipe-delimited. First line is `#MyWords|1|TYPE` where TYPE is the uppercase file category below. Header is metadata, not an object. Unknown schema version or wrong field count fails visibly before mutating live state.
+A owns the parser/writer (`FileManager` + `RecordCodec`); everyone uses the same escaping. UTF-8, one record per physical line, pipe-delimited. First line is `#MyWords|1|TYPE` where TYPE is the uppercase file category below. Header is metadata, not an object. Unknown schema version or wrong field count fails visibly before mutating live state.
 
 Escape each field in one character pass: backslash → `\\`, pipe → `\|`, newline → `\n`, carriage return → `\r`, tab → `\t`. Decode with a state machine so escaped pipes are not delimiters. Preserve trailing empty fields; reject dangling/unknown escapes. Do not chain replacements in a way that double-escapes data. Reject actual control characters that were not escaped. Boolean text is exactly `true` or `false`.
 
