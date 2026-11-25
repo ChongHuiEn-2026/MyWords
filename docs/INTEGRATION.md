@@ -1,249 +1,172 @@
-# Proposed integration contracts
+# Proposed integration contract v0.1
 
-**PROPOSED FOR TEAM REVIEW - NOT YET APPROVED OR IMPLEMENTED.**
+**Pending team review. This is a concrete starting proposal, not an existing or agreed API.** Signatures below are documentation sketches, not Java implementation. All owners should reconcile them before parallel coding. Changes require one updated contract and coordinated consumers; see [DECISIONS.md](DECISIONS.md).
 
-Version: proposal 1, 24 November 2026. These contracts make the work reviewable;
-they do not imply prior team agreement. All four roles must settle them before
-independent implementation. Retain the earlier `AIHelper.ask(String prompt)`
-entry point; its return/exception behavior below is proposed.
+## 1. Shared conventions
 
-| Review item | A | B | C (originating user) | D |
-| --- | --- | --- | --- | --- |
-| Classes/fields/packages | Pending | Pending | Pending | Pending |
-| Methods and error behavior | Pending | Pending | Pending | Pending |
-| File schemas/capacities | Pending | Pending | Pending | Pending |
-| Privacy, consent and logging | Pending | Pending | Pending | Pending |
+- Java types, class names and camelCase method names as below. Package name/Java release remain TBD.
+- IDs are nonempty strings, proposed prefixes: `U`, `P`, `CP`, `PH`, `FB`, `REQ`; unique within their type across reloads. A allocates stored IDs using a persisted/loaded maximum suffix, never just the current array count. B allocates request IDs. No personally identifying IDs in AI prompts.
+- Codes use exact uppercase strings validated with String comparisons: contexts `FAMILY`, `FRIENDS`, `HEALTHCARE`; decisions `APPROVE`, `EDIT`, `REJECT`; reasons `NONE`, `WRONG_MEANING`, `WRONG_TONE`, `WRONG_PERSON_CONTEXT`, `OTHER_UNSURE`.
+- `EDIT` requires a nonempty confirmed correction. `REJECT` may use `OTHER_UNSURE` without a correction. Approve uses `NONE`. A reason does not prove a new intended meaning.
+- User input is trimmed for validation, but preserve confirmed language and punctuation. Do not translate/rewrite saved text silently.
+- Proposed limits: keywords 300 characters; sentence 500; style/language note 120 each; at most 5 memories per request. All are design choices, not lecturer requirements.
+- Internal arrays use non-null occupied prefix `[0, count)` and unused tail slots. After deletion shift left, clear last occupied slot, decrement count. Getter results are defensive copies, not mutable storage references.
+- API return arrays are compact, exact-length arrays; use `.length`. Internal arrays always keep counters. “No match” returns an empty array, not null. Operational failures throw exceptions rather than returning null/empty success.
+- Proposed internal capacities: 20 profiles, 100 user identities, 200 partners, 1,000 phrases, 2,000 feedback records. Agree these before coding; full storage throws `StorageFullException`. They are not achieved capacities or requirements.
 
-Record agreement as `date | reviewers | decision | affected callers/files`.
-Agreement log: none yet. Additive changes and incompatible changes both need
-coordination with affected owners; migrate existing data explicitly if formats change.
+## 2. Model fields to agree
 
-## Shared rules
-
-- IDs are nonempty, stable local strings. Do not use array indexes as persisted IDs.
-- Strings are trimmed at input boundaries. Reject nulls, blank required fields,
-  embedded NUL and values over agreed bounds; preserve meaningful Unicode text.
-- Context is exactly `FAMILY`, `FRIENDS` or `HEALTHCARE`. Feedback action is
-  `APPROVE`, `EDIT` or `REJECT`. Source is `AI` or `SAVED`.
-- Optional text is an empty string, not null. Persist booleans as `true`/`false`.
-- No null elements inside returned arrays. Empty results are zero-length arrays.
-  Every internal storage/filter buffer has an explicit integer count; return a
-  copy containing exactly that count. Callers must not mutate stored objects;
-  agree on immutable records or defensive copies before implementation.
-- All IDs/references belong to the selected communicator. Memory retrieval must
-  never cross communicator boundaries. Partner IDs must match that communicator.
-- Persist domain state and confirmed consent choices, not temporary GUI widget
-  state or unapproved in-flight candidate objects. Prior online permission is
-  shown again before the first request of a new session.
-
-## Proposed sizes
-
-| Buffer / input | Bound |
+| Model | Proposed fields |
 | --- | --- |
-| Users / profiles / partners | 20 / 20 / 100 records |
-| Saved phrases / remembered feedback | 500 / 1000 records |
-| AI suggestions | Exactly 3 validated candidates on success |
-| Relevant phrases / rejection examples per prompt | At most 5 / 3 |
-| Keywords / phrase or candidate text / feedback reason | 300 / 500 / 300 characters |
-| IDs / display labels / style or language labels | 64 / 100 / 100 characters |
-| HTTP response | At most 64 KiB before parsing |
-| Local AI log | At most 1000 displayed candidates; require explicit clearing when full |
+| `User` | `userId`, `displayName`; subtype Communicator/Supporter; linked profile; supporter authorization flag |
+| `CommunicationProfile` | `profileId`, `ownerUserId`, `displayName`, `languageStyle`, `preferredTone`, `aiSharingEnabled` |
+| `ConversationPartner` | `partnerId`, `profileId`, `contextCode`, `label`, `preferredTone` |
+| `Phrase` | `phraseId`, `profileId`, `partnerId`, `contextCode`, `keywords`, `confirmedText`, `allowAIReuse`, `createdAt` |
+| `Suggestion` | `suggestionId`, `requestId`, `text`, `sourceCode` (`AI` or `SAVED`); transient candidate |
+| `Feedback` | `feedbackId`, `profileId`, `partnerId`, `contextCode`, `keywords`, `candidateText`, `decisionCode`, `reasonCode`, `confirmedText`, `allowAIReuse`, `createdAt` |
+| `GenerationRequest` | `requestId`, `profileId`, `partnerId`, `contextCode`, `keywords`, `languageStyle`, `preferredTone`, `aiSharingEnabled`, permitted `Phrase[]` and `Feedback[]` snapshots |
 
-Use Java `String.length()` consistently for these proposed character bounds;
-UTF-8 encoding is separate. Validate before insertion. At capacity, throw
-`StorageFullException`; do not silently drop old records or auto-grow with a
-Collection. A shows a recoverable message and allows deletion. B/C translate a
-full AI log into a safe AI failure until the user explicitly clears it.
+`createdAt` is proposed as a Java `long` Unix epoch milliseconds, serialized as a decimal number. IDs/metadata stay local where possible. Candidate arrays and in-flight request objects are transient; all user-approved persistent records, settings and feedback must be saved. This design does not require saving every keystroke or unfinished request.
 
-## Service APIs: proposed Java signatures
+## 3. Boundary signatures
 
-Constructors, getters and model field types must be finalized jointly; the
-following signatures define cross-role calls and expected responsibilities.
-Service instances are created by A and passed as dependencies, not hidden globals.
+Declarations are illustrative public instance methods. Add constructors/getters only after owner review. `IOException` refers to `java.io.IOException`; signatures use no Collections.
+
+### B: FileManager
 
 ```java
-// A: inheritance. Implement different descriptions in both subclasses.
-public abstract String getRoleDescription(); // on abstract User
-
-// B: FileManager owns all domain record arrays and counters.
-public FileManager(String dataDirectory);
-public void loadAll()
-    throws IOException, InvalidInputException, StorageFullException;
-public User[] getUsers();
-public CommunicationProfile getProfile(String communicatorId)
+void loadAll() throws IOException, InvalidInputException, StorageFullException;
+void saveAll() throws IOException;
+CommunicationProfile getProfile(String profileId) throws InvalidInputException;
+ConversationPartner getPartner(String profileId, String partnerId)
     throws InvalidInputException;
-public ConversationPartner[] getPartners(String communicatorId);
-public Phrase[] getPhrases(String communicatorId);
-public Feedback[] getFeedback(String communicatorId);
-public void saveUser(User user)
+Phrase[] getPhrases(String profileId, String partnerId) throws InvalidInputException;
+Feedback[] getFeedback(String profileId, String partnerId) throws InvalidInputException;
+void saveProfile(CommunicationProfile profile)
     throws InvalidInputException, StorageFullException, IOException;
-public void saveProfile(CommunicationProfile profile)
+void savePartner(ConversationPartner partner)
     throws InvalidInputException, StorageFullException, IOException;
-public void savePartner(ConversationPartner partner)
+void savePhrase(Phrase phrase)
     throws InvalidInputException, StorageFullException, IOException;
-public void savePhrase(Phrase phrase)
+void recordDecision(Feedback feedback, Phrase optionalConfirmedPhrase)
     throws InvalidInputException, StorageFullException, IOException;
-public void saveFeedback(Feedback feedback)
-    throws InvalidInputException, StorageFullException, IOException;
-public void deletePhrase(String communicatorId, String phraseId)
+void appendAILog(String requestId, String profileId, String partnerId,
+                 String contextCode, String displayedReply)
+    throws IOException, StorageFullException;
+void deletePhrase(String profileId, String phraseId)
     throws InvalidInputException, IOException;
-public void deleteMemory(String communicatorId)
+void deleteFeedback(String profileId, String feedbackId)
     throws InvalidInputException, IOException;
-public void appendAILog(String[] displayedCandidates, String timestampUtc)
-    throws InvalidInputException, StorageFullException, IOException;
-public void clearAILog() throws IOException;
-
-// D: selection uses B's copies; remembering uses B's persistence operations.
-public MemoryManager(FileManager files);
-public Phrase[] getRelevantPhrases(
-    String communicatorId, String keywords, String partnerId, String context)
-    throws InvalidInputException;
-public Feedback[] getRelevantFeedback(
-    String communicatorId, String keywords, String partnerId, String context)
-    throws InvalidInputException;
-public void remember(Feedback feedback)
-    throws InvalidInputException, StorageFullException, IOException;
-
-// C: ask is low-level transport, not a GUI display or persistence method.
-public AIHelper(FileManager files);
-public String ask(String prompt) throws AIServiceException;
-public Suggestion[] generateSuggestions(
-    String keywords, CommunicationProfile profile, ConversationPartner partner,
-    Phrase[] relevantPhrases, Feedback[] relevantFeedback)
-    throws InvalidInputException, AIServiceException;
-public void logDisplayedSuggestions(Suggestion[] suggestions)
-    throws AIServiceException;
+void deleteProfileData(String profileId) throws IOException;
 ```
 
-`getProfile` fails for an unknown communicator instead of returning null. Array
-getters return empty arrays for unknown IDs; mutation calls reject unknown or
-mismatched references. `save*` upserts by ID after validation: updates preserve
-counts, inserts check capacity. Successful mutation calls are persisted before
-return; no separate caller-side `saveAll()` is needed. B owns atomic replacement
-or rollback for each affected file; coordinate a recoverable multi-file deletion.
+`saveProfile` / `savePartner` are validated upserts by ID. Never create a second record on edit. All partner/phrase/feedback access must check profile ownership. Controller calls also validate the active user.
 
-`deleteMemory` deletes that communicator's remembered feedback; saved phrases
-remain individually controlled by `deletePhrase`. The UI must explain these
-separate scopes. AI logs have no communicator identifiers and are cleared in
-full via `clearAILog`; warn that a shared local log includes all demo sessions.
-Profile deletion and multi-user security are outside the first proposed API.
+`recordDecision` supports feedback plus an optional approved phrase in one logical operation. Null is allowed **only for `optionalConfirmedPhrase`** when no phrase is being saved. If feedback storage was declined but phrase storage was permitted, use `savePhrase`; do not persist disallowed feedback merely to satisfy another signature. If both storage choices were declined, no persistence method is called. Saving an approved phrase must not imply permission to retain the rejected alternatives.
 
-D's `remember` checks the profile's memory permission and the UI's explicit
-remember action before calling B. B revalidates persisted consent. No persistence
-occurs on a mere rejection, hover, selection or generation. Saving a phrase needs
-a separate explicit choice and is allowed for manual/offline text too.
+Both stored objects must be consented, refer to the same profile/context, and be validated/capacity-checked before changing arrays/files. Define and test a recovery strategy for interruption between files. Do not claim multi-file atomicity until implemented. Single-file writes should use a temporary `.txt` and replace only on success; preserve originals on failed load/write.
 
-For APPROVE, final text must equal candidate text. For EDIT, final text must be
-nonempty. For REJECT, final text is empty and candidate text must never become an
-approved phrase. Optional rejection reasons may be remembered only with consent.
-D selects exact communicator/context matches, prioritizes exact partner matches,
-then keyword matches; ties use most recent timestamp then ID for reproducibility.
-Do not reuse rejected candidate text as a positive example.
+`appendAILog` writes only a display-ready AI reply plus local scope/time metadata. It must never store keys, headers or raw prompts. Propose a 5 MB log cap: if full, require review/deletion rather than silent truncation. This cap is not a source requirement.
 
-## AI boundary, provider schema and display logging
+### C: MemoryManager
 
-C loads only the flat keys in `config.example.txt` with a simple Java parser;
-provider, endpoint, model and JSON library policy remain team decisions. Do not
-use a Map/Properties object as a shortcut around the array restriction. Missing
-or placeholder settings disable online generation safely. Never return raw HTTP
-error bodies, prompt contents or credentials in user-facing exceptions.
+```java
+Phrase[] selectPhrases(String keywords, String contextCode,
+                       Phrase[] candidates, int limit);
+Feedback[] selectFeedback(String keywords, String contextCode,
+                           Feedback[] candidates, int limit);
+```
 
-`ask` returns the provider's raw response body on success. C's provider-specific
-adapter extracts generated text; do not parse the whole HTTP JSON envelope as
-candidate lines. Build/escape request JSON correctly and use a parser permitted
-by the lecturer; never split arbitrary JSON with naive delimiter operations.
+Inputs must already be restricted to the active profile and selected partner by B/A. D still checks context and `allowAIReuse`. Proposed combined budget: up to 3 phrases + 2 feedback records (5 total), deterministic ranking by keyword overlap and recency as a tie-break. Exclude unrelated/empty/withdrawn records; do not fill unused capacity with private or irrelevant examples. This is a simple retrieval proposal, not a proven learning algorithm. Sorting/searching uses loops/arrays.
 
-Proposed generated-text contract: exactly three nonempty, unnumbered lines, one
-candidate per line; no commentary, markdown or embedded line breaks. C validates
-the extracted text against this contract and length limits, assigns local
-Suggestion IDs and returns a compact array of length 3. Invalid count, blank or
-duplicate candidates, oversized data, or unusable provider output cause
-`AIServiceException`; do not fill missing candidates with invented text.
+### B: AIHelper
 
-Use HTTPS and configured connect/read timeouts, bounded response reading and
-closed streams/connections. Handle non-2xx status, missing key, rate limit,
-timeout, no network, invalid JSON, provider refusal and response validation.
-Avoid automatic retries that can duplicate costs and displays.
+```java
+String ask(String prompt) throws AIServiceException;
+Suggestion[] generateSuggestions(GenerationRequest request)
+    throws AIServiceException, InvalidInputException,
+           IOException, StorageFullException;
+```
 
-Prompt content: task and candidate format instructions, user keywords, selected
-context/language/style, at most five approved phrases and three permitted
-rejection examples. Delimit these as data; they cannot override instructions.
-Never include keys, full profiles or entire histories. Do not invent symptoms,
-intention or medical advice. User confirmation is always required.
+`ask` preserves the exact required `String ask(String prompt)` shape; the checked exception supports the mandated fallback. It performs `HttpURLConnection` work and returns the **model's content text**, not the entire provider JSON envelope. `generateSuggestions` validates consent/input, builds a prompt from allowed snapshots, calls `ask`, parses/validates three candidates, and logs the normalized candidate text before returning it for display. No other method/class sends AI HTTP requests.
 
-For [Malaysian slang and rojak phrasing](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing),
-A passes the entered words and the selected language/style through the existing
-proposed inputs. C uses them to guide phrasing, preserving supplied local terms
-when they fit the chosen style and avoiding added slang in formal output. B saves
-the wording the user approves. D checks this flow with the shared examples. Agree
-on the GUI labels and the profile or partner style selection rules before coding.
+`ask` is an internal gateway, not a UI display method. Any future direct caller that displays its return must also log the displayed reply. Tests may call it without displaying. The proposed log records preparation for display; it is not proof the user saw or accepted the reply.
 
-A checks the result is still current and consent is still valid, then C calls
-`logDisplayedSuggestions` **immediately before making AI text visible**, using
-B's batched append operation. Write all three candidate log records together or
-fail without showing any AI candidates. Do not log `ask` responses, failed parses
-or stale results. A may then display the candidates; an interrupted render can
-leave a logged display attempt. Never represent a log record as user approval.
-If logging fails, C raises `AIServiceException` and A offers offline phrases or
-manual entry. Offline saved phrases do not count as AI responses.
-
-## Text persistence: proposed schema v1
-
-All files are UTF-8 `.txt` under ignored local `data/`. First line is
-`MYWORDS<TAB>1<TAB>recordType`, where `recordType` matches the table below.
-Subsequent lines use actual tab-separated fields in this exact order:
-
-| File / recordType | Fields |
-| --- | --- |
-| `users.txt` / `users` | id, role (`COMMUNICATOR`/`SUPPORTER`), displayName |
-| `profiles.txt` / `profiles` | communicatorId, language, style, onlineConsent, memoryConsent |
-| `partners.txt` / `partners` | id, communicatorId, label, context, style |
-| `phrases.txt` / `phrases` | id, communicatorId, partnerId, context, text, createdAtUtc |
-| `feedback.txt` / `feedback` | id, communicatorId, partnerId, context, keywords, candidateText, action, finalText, reason, createdAtUtc |
-| `ai_log.txt` / `ai_log` | displayedAtUtc, source (`AI`), candidateText |
-
-Partner ID may be empty for a general context; all other referenced IDs must
-exist. Use ISO-8601 UTC timestamps, for example `2026-11-24T06:00:00Z`, and
-lexically safe local IDs such as `P001`. Profile consent flags cover online use
-and remembering feedback; each request/save still needs the described UI choice.
-
-Escaping applies to every field: backslash becomes `\\`, tab becomes `\t`, LF
-becomes `\n`, and CR becomes `\r`. Implement escape/unescape with a character
-scanner; do not repeatedly replace substrings when unescaping. Reject unknown
-escapes, trailing backslashes, wrong column counts, duplicate IDs, invalid enums,
-bad timestamps, unsupported versions and dangling references. Preserve trailing
-empty fields. Validate loaded records into temporary arrays/counters before
-publishing state. A malformed file is an error, not permission to erase it.
-
-Fictional `phrases.txt` example below uses `<TAB>` to show separators; actual
-files must contain tab characters. It assumes U001 and CP001 exist:
+### A: Controller orchestration
 
 ```text
-MYWORDS<TAB>1<TAB>phrases
-P001<TAB>U001<TAB>CP001<TAB>FAMILY<TAB>Tomorrow I want to have tea with Ah Ma.<TAB>2026-11-24T06:00:00Z
+validate active profile, partner, keywords and AI consent
+snapshot request + allowed retrieval inputs
+ask D for bounded relevant permitted memories
+run B.generateSuggestions off the Swing UI thread
+check request still matches active session/context
+display returned candidates or catch errors and offer fallback
+after human confirmation, pass only consented records to B
 ```
 
-AI logs contain candidate text and therefore may still be sensitive despite
-omitting profile IDs. Keep them local, disclose logging, never record keys or
-full HTTP payloads, and provide explicit clearing. They are append-only display
-evidence, not personalization memory and must never be reloaded as approved
-phrases. Existing log records remain readable across restart.
+A does not parse JSON, C does not implement a second memory store, D does not make network calls, B does not decide an AI interpretation is correct. D owns the screens and report export; C owns the phrase/feedback retrieval logic.
 
-Missing files on first run mean empty state; create headers on first successful
-write. Existing files with empty/invalid headers are load errors. Temporary files
-stay beside their targets; replace successfully written files before publishing
-the corresponding in-memory mutation. Preserve the last readable state on error.
-B/D test Unicode, escaped characters, malformed input and capacity boundaries.
+## 4. Provider and response format
 
-## Error ownership and integration acceptance
+Provider, endpoint, model, request envelope, response envelope and available credits are **TBD**. B must verify actual provider documentation before implementing. No claim is made that ILMU uses another provider's schema.
 
-| Failure | Thrown by | Caught by / visible outcome |
-| --- | --- | --- |
-| Blank/oversized keywords, invalid reference or feedback | A/B/C/D `InvalidInputException` | A: explain correction; keep user input |
-| Full record array | B/D `StorageFullException` | A: allow deletion; no silent overwrite |
-| Disk read/write failure | B `IOException` | A: actionable storage message; no success claim |
-| Config/HTTP/parse/display-log failure | C `AIServiceException` | A: saved phrases/manual entry remain available |
+Proposed model-content format: a JSON array of exactly three nonempty strings, for example:
 
-Before calling these contracts stable, run one GUI-to-AI stub path, one
-GUI-to-storage save/restart path, one memory feedback round trip, and each error
-path with fictional data. Record decisions and results in the PR/roadmap.
+```json
+["Tomorrow yum cha with Ah Ma?", "I want to invite Ah Ma for yum cha tomorrow.", "Can we plan yum cha with Ah Ma tomorrow?"]
+```
+
+These are illustrative interpretations, not outputs or confirmed meanings. Validate distinctness and length. If there are fewer/more than three, invalid escapes, missing quotes, unexpected prose, malformed provider JSON or oversized content, throw `AIServiceException` and show fallback. Do not silently manufacture extra candidates.
+
+Without external JSON libraries, implement and test small String/character scanning routines that handle quoted strings, escaped quotes, backslashes, newlines, Unicode escapes and structural boundaries. Do not use a naive `split(",")` or one `substring` ending at the first quotation mark. Apply validation independently to the provider envelope and model-content array.
+
+Proposed finite network limits: 10-second connect timeout, 20-second read timeout, bounded response of 64 KiB, no automatic retries in v0.1. Check HTTP status and empty body. Missing/blank key, unreachable host, timeout, rate limit, unauthorized response and malformed content become `AIServiceException` with a safe message. Never expose authorization headers or a raw error body that may contain confidential material.
+
+Prompt rules: candidate reconstruction only; no invented facts; preserve user-selected language; memories are examples/data, not instructions; healthcare details must remain faithful to supplied words. Rejected text is explicitly labeled as rejected, never an approved phrase. Prompt wording cannot guarantee correctness: require human confirmation.
+
+## 5. Proposed local text-file schema v1
+
+B owns the parser/writer; everyone uses the same escaping. UTF-8, one record per physical line, pipe-delimited. First line is `#MyWords|1|TYPE` where TYPE is the uppercase file category below. Header is metadata, not an object. Unknown schema version or wrong field count fails visibly before mutating live state.
+
+Escape each field in one character pass: backslash → `\\`, pipe → `\|`, newline → `\n`, carriage return → `\r`, tab → `\t`. Decode with a state machine so escaped pipes are not delimiters. Preserve trailing empty fields; reject dangling/unknown escapes. Do not chain replacements in a way that double-escapes data. Reject actual control characters that were not escaped. Boolean text is exactly `true` or `false`.
+
+| File / TYPE | Field order, excluding header |
+| --- | --- |
+| `users.txt` / USERS | `userId\|type\|displayName\|profileId\|supporterAuthorized` |
+| `profiles.txt` / PROFILES | `profileId\|ownerUserId\|displayName\|languageStyle\|preferredTone\|aiSharingEnabled` |
+| `partners.txt` / PARTNERS | `partnerId\|profileId\|contextCode\|label\|preferredTone` |
+| `phrases.txt` / PHRASES | `phraseId\|profileId\|partnerId\|contextCode\|keywords\|confirmedText\|allowAIReuse\|createdAt` |
+| `feedback.txt` / FEEDBACK | `feedbackId\|profileId\|partnerId\|contextCode\|keywords\|candidateText\|decisionCode\|reasonCode\|confirmedText\|allowAIReuse\|createdAt` |
+| `ai_log.txt` / AI_LOG | `createdAt\|requestId\|profileId\|partnerId\|contextCode\|displayedReply` |
+
+`users.txt` type is `COMMUNICATOR` or `SUPPORTER`; one profile per communicator in this proposal. The flag is used only for supporters and is not a secure login credential. Persisted IDs and references must validate on load; fail visibly for duplicates or cross-profile partner references. On a first run, absent files may initialize an empty store with a notice; unreadable/corrupt existing files must not be treated as an empty first run.
+
+Illustrative fictional phrase record:
+
+```text
+#MyWords|1|PHRASES
+PH001|P001|CP001|FAMILY|kopi tomorrow|Tomorrow kopi with Ah Ma lah.|true|1795478400000
+```
+
+Illustrative feedback record (a rejected interpretation remains marked rejected):
+
+```text
+#MyWords|1|FEEDBACK
+FB001|P001|CP001|FAMILY|kopi tomorrow|Please buy me coffee.|REJECT|WRONG_MEANING|I want to drink kopi together tomorrow.|true|1795478400000
+```
+
+`config.txt` is separate from user data: proposed keys `apiKey=...`, `endpoint=...`, `model=...`, parsed with String operations. Exact provider settings remain TBD. Never include a real credential in this pack, demo data, repository or submission. The actual project should ignore local `config.txt` and supply a placeholder/example plus setup instructions. Locally generated logs/private data must also be excluded from public source control; distribute only fictional sanitized fixtures.
+
+## 6. Contract acceptance cases (not executed)
+
+- [ ] Round-trip `Ah Ma|kopi`, backslashes, quotes, emoji, Mandarin/BM text, newline and empty fields without changing confirmed text.
+- [ ] Array bounds, duplicate IDs, full capacity, deletion shifting and malformed file reload are handled without silent loss.
+- [ ] Only current profile/partner/context and explicitly shareable memories reach B; withdrawal/deletion takes effect on the next request.
+- [ ] One user-approved edit becomes the stored final text; rejected text never enters the approved phrase array.
+- [ ] Valid AI content gives exactly three candidates; malformed/escaped/oversized responses are tested.
+- [ ] Offline/missing-key/rate-limit/timeout paths keep saved phrases available.
+- [ ] Log failure prevents displaying an unlogged AI reply and gives a clear local-storage message; saved phrases/manual entry remain usable.
+- [ ] Late/cancelled replies cannot be accepted for the wrong profile/context.
+- [ ] Restart preserves consent flags, scope and all confirmed records intended for persistence.
+
+Before implementation, review these proposed signatures together and resolve the provider/Java/package decisions in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).

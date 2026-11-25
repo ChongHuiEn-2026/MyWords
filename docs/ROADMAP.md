@@ -1,92 +1,85 @@
-# Development roadmap and evidence checklist
+# Proposed timeline and development checklist
 
-Planning baseline: **24 November 2026, Malaysia time (UTC+08:00)**.
-Working final deadline from the earlier discussion: **10 December 2026, 11:00 PM**,
-to be verified in the official portal. Intermediate dates below are proposed team
-targets. Finish features by 7 December; reserve 8-9 December for submission work.
+Prepared 24 November 2026. Dates are MYT (Asia/Kuala_Lumpur). **All boxes are unchecked because no implementation evidence was supplied.** This is a new working checklist, not recovered progress from the earlier chat's interactive widget.
 
-## Milestones
+The source announcement deadline is 10 December 2026, 11:00 PM. There are 17 calendar dates from 24 November through 10 December inclusive; that is not a guarantee of 17 full working days. Reconfirm portal timing.
 
-| Dates | Outcome | Owners / dependencies |
-| --- | --- | --- |
-| 24-25 Nov | Review context pack, settle scope and source questions, approve contracts | All; A coordinates |
-| 26-27 Nov | Common Java project, UML, screen sketches, arrays and service stubs | A/B; C/D review record models |
-| 28-29 Nov | Usable GUI without online AI: manual phrases, errors and save/restart | A/B; D verifies |
-| 30 Nov-2 Dec | Java API integration, response validation, logs and offline fallback | C; depends on A/B stubs |
-| 3-4 Dec | Explicit feedback memory, partner styles and Malaysian slang and rojak scenarios | D/C/B with A's consent UI |
-| 5-7 Dec | Integrated acceptance tests, generic/personalized comparison, feature freeze | All; D coordinates evidence |
-| 8-9 Dec | Final report, screenshots, source ZIP, 5-7 minute all-member video | All; A coordinates |
-| 10 Dec | Fresh-machine/offline checks, upload early, verify receipt before 23:00 | All; final portal owner to be assigned |
+## Dated plan
 
-## Context-pack setup
+| Dates | Proposed goal | Main owners | Exit evidence |
+| --- | --- | --- | --- |
+| 24 Nov | Confirm scope, roles, lecturer questions and shared context | All; A coordinates | Named owners, questions sent by a human, decision log |
+| 25–26 Nov | Screens, UML, file schema, API contract, mock fixtures | A/B/C/D | Team-reviewed design and compile-ready shells |
+| 27–29 Nov | Offline GUI and persistence | A/B; C/D integrate fixtures | **29 Nov milestone:** create/select profile, enter keywords, confirm manual/saved phrase, save and reload through GUI |
+| 30 Nov–2 Dec | Real AI gateway, response handling, logging and fallback | B with A/D | Live synthetic request plus missing-key/offline/parse/log-error cases |
+| 3–5 Dec | Feedback memory, scoped retrieval and controlled comparison | C with B/D | **5 Dec milestone:** explicit correction can affect an eligible later prompt; raw comparison records collected |
+| 6–7 Dec | Integrate, fix defects, verify restrictions and restart behavior | All | **7 Dec development target:** end-to-end core scope demonstrated |
+| 8 Dec | Feature freeze; report evidence and video rehearsal | All | Stable candidate build; known issues and deferred features recorded |
+| 9 Dec | Finish report/video and rehearse clean evaluator setup | All | Reviewed report; 5–7 minute video; clean ZIP and access checks |
+| 10 Dec | Early upload, verification and buffer | A; all available | Required portal/course submissions and receipts before 11 PM |
 
-- [x] Inspect the existing repository and branches before preparing changes.
-- [x] Recover project discussion and directly inspect the lecturer PDF.
-- [x] Populate shared context, requirements, role guidance and proposed contracts.
-- [x] Prepare a placeholder configuration and additive privacy ignore rules.
-- [ ] Team reviews and merges the context-pack PR.
+The earlier chat mentioned both finishing development by 7 December and freezing on 8 December. This plan keeps those as consecutive milestones. If a milestone slips, reduce stretch scope openly rather than relabeling incomplete work as done.
 
-These completed items describe documentation setup only. All application tasks
-below remain unchecked; this pack does not assert implementation progress.
+## Phase 1: decisions and compliance
 
-## Phase 1: settle the plan (24-25 Nov)
+- [ ] A: confirm four members from the same OCC and registration (O01).
+- [ ] All: record names, group/track, lecturer, Java/IDE and roles; confirm each member accepts a comparable programming scope.
+- [ ] All: review S1/S2 requirements and the GUI/inheritance corrections.
+- [ ] A: obtain written clarification on fourth deliverable and Scanner menu; record answer and source.
+- [ ] All: agree minimum features, deferred features, data consent and accessibility assumptions.
+- [ ] All: review and accept one integration contract version before splitting files.
+- [ ] All: map Weeks 1–10 topics to planned features without adding arbitrary classes.
 
-- [ ] A: confirm names/roles, group number, same-OCC eligibility and report details.
-- [ ] A: verify deadline/timezone and three-versus-four submission requirements.
-- [ ] A: clarify the Scanner-menu requirement and any earlier extra constraints.
-- [ ] All: approve MVP scope; keep conversation repair optional.
-- [ ] All: review class fields, method signatures, capacities, formats and errors.
-- [ ] A: settle JDK, NetBeans/build format, packages and branch workflow.
-- [ ] A/C: settle consent UI, provider transmission, local logging and deletion.
+## Phase 2: design and shared interfaces
 
-## Phase 2: working offline application (26-29 Nov)
+- [ ] A: draw GUI navigation and UML, including real overridden behavior.
+- [ ] B: agree field lists, IDs, array capacities, escaping, schema version and recovery behavior.
+- [ ] B: confirm provider/endpoint/model/credits and permitted data use; define String-based envelope parsing.
+- [ ] B/C: agree candidate format, memory budget and rejection-reason codes.
+- [ ] B/D: create fictional fixtures with expected retrieval and permissions.
+- [ ] A: create a compilable integrated skeleton and document actual run steps once available.
 
-- [ ] A: draw UML, screens and backend connection; implement meaningful polymorphism.
-- [ ] B: implement bounded arrays/counters and custom storage/input exceptions.
-- [ ] B: implement UTF-8 text save/reload and recoverable failure behavior.
-- [ ] A/B: profile/context selection, manual entry and saved-phrase GUI work.
-- [ ] A: integrate stubs without blocking GUI navigation.
-- [ ] D: verify empty state, Unicode, invalid input, full arrays and restart.
-- [ ] All: demonstrate usable offline GUI by 29 November.
+## Phase 3: 29 November offline milestone
 
-## Phase 3: online AI and feedback (30 Nov-4 Dec)
+- [ ] A: arrays and counters support add/search/update/delete and detect capacity limits; files survive restart.
+- [ ] D/A: GUI selects/creates a profile and partner/context; invalid fields preserve user input.
+- [ ] C/D: manual or saved phrases can be selected and confirmed without AI.
+- [ ] D/C/A: saving and future-AI reuse have separate consent controls.
+- [ ] A: missing initial files, corrupt existing files and save failures are handled visibly.
+- [ ] All: demonstrate offline GUI flow and retain evidence; no mock is called live AI.
 
-- [ ] C: safe local config loader and provider-approved HTTP request/response path.
-- [ ] C: preserve `ask(String prompt)`; validate exactly three candidates.
-- [ ] C/A: handle timeout, missing key, rate limit, malformed data and stale requests.
-- [ ] C/B: log displayed AI candidates locally, with safe failure and clear behavior.
-- [ ] A: saved phrases/manual entry work when AI is unavailable or declined.
-- [ ] D/B: feedback and approved phrases remain distinct and persist correctly.
-- [ ] D: only permitted memory influences later suggestions; deletion takes effect.
-- [ ] A/B/C/D: run the [Malaysian slang and rojak examples](PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing) from keyword entry and style selection through suggestions, save and offline reload.
+## Phase 4: AI and fallback
 
-## Phase 4: verify and freeze (5-7 Dec)
+- [ ] B: local `config.txt` key loading with safe errors and evaluator setup notes.
+- [ ] B: every AI request routes through `AIHelper.ask`, using `HttpURLConnection` and manual String JSON work.
+- [ ] B: timeouts, HTTP failure, response size, quotes/escapes/Unicode and malformed bodies handled.
+- [ ] B/C/D: exactly three validated candidate sentences reach UI; the user can edit, reject or choose none.
+- [ ] A/B: exact displayed AI replies are logged without prompts/keys; log-write failure has a clear fallback.
+- [ ] A/B/D: no blocked GUI; stale/cancelled response cannot target the wrong session/context.
+- [ ] A/B/D: missing key/network triggers caught `AIServiceException`; saved phrases still work.
 
-- [ ] D: record generic versus personalized results using fictional matched scenarios.
-- [ ] All: every promised main GUI feature works end to end.
-- [ ] All: custom exceptions are thrown and caught with recoverable messages.
-- [ ] B/D: test corrupt files, overflow, escaped text, restart and failed disk writes.
-- [ ] A/C: test no consent, cancellation, rapid clicks and offline recovery.
-- [ ] All: inspect tracked files and screenshots for secrets or personal data.
-- [ ] A: count meaningful Java classes and reconcile final code with UML/contracts.
-- [ ] All: feature freeze on 7 December; record known limitations honestly.
+## Phase 5: personalization and evidence
 
-## Phase 5: submission (8-10 Dec)
+- [ ] C/A: explicit permitted corrections and reasons are saved/reloaded accurately.
+- [ ] C: deterministic array-based retrieval filters by profile, partner, context, consent and relevance.
+- [ ] B/C: retrieved rejection is labeled as a rejection; unconfirmed meaning never becomes approved memory.
+- [ ] D: prepare fixed fictional scenarios and intended meanings before running comparisons.
+- [ ] D with B/C: run generic, memory-only and correction/context conditions with the same provider/model/settings and record inputs, outputs and latency.
+- [ ] D: compute top-three intended-meaning match and edit/selection effort, record unsupported details/privacy leaks and disclose limitations. No invented improvements.
+- [ ] All: test user-controlled memory withdrawal/deletion and next-request exclusion.
 
-- [ ] All: complete the lecturer report's pp.4-8, APA references and contribution rows.
-- [ ] A/D: collect screenshots of each feature, each error and restart persistence.
-- [ ] All: record and time a 5-7 minute video; every member explains their own work.
-- [ ] B: package fictional `.txt` sample data; exclude keys, personal data and runtime logs.
-- [ ] A: add verified build/run/JDK and offline-demo instructions to README.
-- [ ] All: run the source ZIP in a clean location with documented setup.
-- [ ] A: use actual group/track naming and confirm any fourth submission item.
-- [ ] Assigned uploader: submit early on 10 December and verify uploaded files/link access.
-- [ ] All: retain portal receipt and final source/report/video versions.
+## Phase 6: integration, report and submission
 
-## Recording evidence
+- [ ] All: inspect actual code for Collections storage, external JSON libraries, missing comments and duplicate backend logic.
+- [ ] A: exercise inheritance through parent references and demonstrate each application role's real rules.
+- [ ] All: trigger and catch every custom exception for the report/video.
+- [ ] B: verify files and reload after restart; confirm no silent data loss or ID collisions.
+- [ ] A: compile/run cleanly in the chosen IDE with only documented steps.
+- [ ] All: reconcile final promised features, UML, method names and data formats with actual code.
+- [ ] All: complete lecturer report template with screenshots and references; update its table of contents.
+- [ ] All: record a 5–7 minute video; every member explains their code contribution.
+- [ ] C/B: remove real keys/private data; include fictional data and placeholder configuration instructions.
+- [ ] A: verify actual group filename, source ZIP, report, video access and any confirmed fourth deliverable.
+- [ ] A: submit to both required destinations, reopen uploaded artifacts and save receipts.
 
-For each completed implementation task, attach a commit/PR, test result, screenshot
-or report section. Use `date | owner | scenario | expected | observed | evidence`.
-No implementation evidence is recorded yet. Keep private data out of evidence.
-If dates slip, replan scope with the whole team; never quietly drop a mandatory
-GUI, persistence, exception, array or submission requirement.
+Completion needs evidence: use [DECISIONS.md](DECISIONS.md) to record commit/build, check performed, result and artifact location. Documentation-only readiness is not application completion.

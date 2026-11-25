@@ -1,0 +1,52 @@
+# Decisions, changes and implementation evidence
+
+## Current status
+
+Pack v0.1 prepared 24 November 2026. **Design proposed; no implementation inspected.**
+
+| ID | Status | Statement | Basis |
+| --- | --- | --- | --- |
+| D01 | User-confirmed | Project idea is MyWords — Let Me Finish My Sentence | S3 selected final idea |
+| D02 | Historical | An earlier context pack assigned the requesting student to Role C | Prior context; current request does not say which role the requester holds |
+| D03 | Source requirement | Connected GUI and Java backend; inheritance/polymorphism/custom exceptions required | S1 pp.1–2 |
+| D04 | Proposed | Swing, class design, method/data contracts, privacy controls and dated plan in this pack | New synthesis; no team acceptance supplied |
+| D05 | Open | Fourth deliverable and Scanner-with-GUI discrepancy | S1/S2 conflict; Q01/Q02 |
+| D06 | User-confirmed | Keep the same MyWords app and assign: A group leader/system architect/core data manager; B AI integration; C clinical features/logic; D UI/report generator. Balance the programming workload across all four roles. | Current direct user request and attached role/task screenshots |
+
+## Accepting or changing a design
+
+1. State the problem, proposed change and affected owners/classes/files.
+2. Separate a requirement correction from a design preference; cite the source if requirements change.
+3. Get affected teammates to review shared signatures, file fields or behavior before incompatible implementation spreads.
+4. Update canonical documents in one coordinated version; add migration notes if existing data/code will break.
+5. Record the decision below and tell every teammate to reload context. If there is actual code, update producers/consumers and run appropriate checks.
+
+No team acceptance is implied merely by receiving this pack. An accepted contract is still not proof it has been implemented.
+
+## Decision log template
+
+| Date MYT | ID / version | Decision and status | Source or approving teammates | Affected documents/code | Migration / next action |
+| --- | --- | --- | --- | --- | --- |
+| — | — | No further decision recorded | — | — | — |
+
+## Implementation evidence ledger
+
+Use this only after inspecting actual work. Record failed checks as well as passes. Never fill a row from the planned architecture alone.
+
+| Date MYT | Requirement/task | Actual code revision/files | Check performed | Observed result | Evidence artifact | Owner |
+| --- | --- | --- | --- | --- | --- | --- |
+| — | — | No code or checks supplied | — | Not verified | — | — |
+
+## Shared-contract change request template
+
+```text
+Change ID / proposed version:
+Reason and requirement source (if any):
+Current contract:
+Proposed contract:
+Affected owners/callers/files:
+Data migration or backward compatibility:
+Checks to run:
+Team decision and date:
+Canonical files updated:
+```

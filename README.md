@@ -1,97 +1,61 @@
-# MyWords
+# MyWords AI Context Pack
 
-**Let Me Finish My Sentence** - a personalized communication aid prototype for
-the Universiti Malaya WIX1002 Fundamentals of Programming Hackathon, Track 3:
-Healthcare. A person enters keywords, reviews possible sentences, and chooses,
-edits or rejects them. Only explicitly approved feedback becomes personal memory.
+Version: 0.2 | Prepared: 25 November 2026 | Timezone: Asia/Kuala_Lumpur (MYT, UTC+8)
 
-MyWords is designed for Malaysian everyday speech, including local slang and
-rojak phrasing that mixes languages. Suggestions follow the communicator's chosen
-style and can keep local expressions such as `tapau` or `Ah Ma` when appropriate.
-See the [shared language behavior and examples](docs/PROJECT_CONTEXT.md#malaysian-slang-and-rojak-phrasing).
+**Planning documentation only. No project repository, code, tests, working features or experimental results were supplied or inspected. The role files now allocate balanced programming modules for the existing MyWords communication-aid app. The attached role screenshots were used to retain its features and redistribute their ownership.**
 
-MyWords is an educational prototype, with no clinical validation or treatment
-claims. See [project scope and privacy](docs/PROJECT_CONTEXT.md).
+This pack describes **MyWords — Let Me Finish My Sentence**, a WIX1002 Fundamentals of Programming (FOP) Hackathon project at Universiti Malaya, Track 3: Healthcare. The app scope remains the same; the revised development roles in `ROLE_A.md`–`ROLE_D.md` redistribute its programming work. Role names are development assignments, distinct from the application's Communicator and Supporter users.
 
-## Current status
+## Balanced programming ownership
 
-As inspected on 24 November 2026, the repository contained only this project's
-title and a standard Java `.gitignore` on `main`. This context pack adds the
-shared development plan; **there is no runnable Java application yet**.
-Architecture, method signatures and data formats are proposals awaiting team
-review, not descriptions of implemented behavior.
+| Role | Main coding module | Comparable contribution |
+| --- | --- | --- |
+| A | Startup/controller, user-role classes, core arrays and file persistence | Builds and integrates the app backbone and CRUD/storage logic |
+| B | AI configuration, prompt construction, HTTP gateway, response parser and AI exceptions | Implements and explains the external-service boundary and robust fallback errors |
+| C | Suggestion workflow, feedback decisions, scoped memory search and communication rules | Implements the app's core personalization and meaning-preservation logic |
+| D | Swing screens, input validation, confirmed-phrase report generation and text export | Implements the full user journey and user-controlled conversation export |
 
-Working deadline: **10 December 2026 at 11:00 PM Malaysia time
-(Asia/Kuala_Lumpur, UTC+08:00)**, carried from the earlier planning conversation.
-The lecturer PDF does not state this deadline; confirm it in the official portal.
+The work is balanced by implementation complexity and end-to-end ownership, not by counting Java files. Each member also contributes to integration, documentation and presenting their own code. Review this estimate together before coding and redistribute a module if the team's experience or time differs.
 
-## Start here
+## Use this pack
+
+1. Extract the ZIP and share the same version with everyone. Keep the lecturer PDF in `sources/` available for checking.
+2. In your shared project, place `AGENTS.md` at the repository root and the `docs/` folder beside it. If an `AGENTS.md` already exists, reconcile its contents; do not overwrite unrelated instructions.
+3. Give your AI the files in the reading order below. Some tools read `AGENTS.md` automatically; for others, upload the Markdown files or paste their text. Do not assume automatic loading.
+4. State your assigned role A, B, C or D. Use the starter prompt in [AI_USAGE.md](docs/AI_USAGE.md).
+5. Hold a short team review of [INTEGRATION.md](docs/INTEGRATION.md) and [OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) before separate implementation. These are proposed contracts, not previously agreed APIs. Confirm that programming effort feels comparable to each teammate.
+6. Record accepted changes in [DECISIONS.md](docs/DECISIONS.md), update the canonical files, and tell every teammate to refresh their AI context. Chat-only agreements cause drift.
+
+For a chat that accepts only one document, use the companion `MyWords_AI_Context_All_In_One.md`. It is a generated snapshot, not a second authority. Edit the individual files and regenerate it when the pack changes.
+
+## Reading order and file map
 
 | File | Purpose |
 | --- | --- |
-| [AGENTS.md](AGENTS.md) | Shared instructions for every coding assistant |
-| [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md) | Users, features, scope and project rationale |
-| [REQUIREMENTS](docs/REQUIREMENTS.md) | Verified PDF requirements, earlier constraints and open questions |
-| [ARCHITECTURE](docs/ARCHITECTURE.md) | Proposed Java classes, Swing flow and ownership |
-| [INTEGRATION](docs/INTEGRATION.md) | Proposed signatures, arrays, persistence and error contracts |
-| [ROADMAP](docs/ROADMAP.md) | Dates, checkboxes and delivery evidence |
-| [ROLE_A](docs/ROLE_A.md) | Project coordination, GUI and inheritance |
-| [ROLE_B](docs/ROLE_B.md) | Domain records, arrays and text persistence |
-| [ROLE_C](docs/ROLE_C.md) | Originating user's AI integration responsibilities |
-| [ROLE_D](docs/ROLE_D.md) | Feedback memory, personalization and testing |
-| [config.example.txt](config.example.txt) | Placeholder configuration; contains no credentials |
+| [AGENTS.md](AGENTS.md) | Canonical shared instructions and status rules |
+| [SOURCES.md](docs/SOURCES.md) | Source provenance, confidence and limitations |
+| [REQUIREMENTS.md](docs/REQUIREMENTS.md) | PDF and original-announcement requirements, with evidence locations |
+| [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Purpose, scope, application roles, flow and innovation hypothesis |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Proposed Java classes, screens and error boundaries |
+| [INTEGRATION.md](docs/INTEGRATION.md) | Proposed signatures, models, response handling and text-file schema |
+| [PRIVACY.md](docs/PRIVACY.md) | Consent, local storage, logging, AI disclosure and deletion |
+| [ROADMAP.md](docs/ROADMAP.md) | Dated plan and unchecked acceptance checklist |
+| [ROLE_A.md](docs/ROLE_A.md) | Group leader, system architect and core data manager |
+| [ROLE_B.md](docs/ROLE_B.md) | AI integration developer |
+| [ROLE_C.md](docs/ROLE_C.md) | Clinical features and logic developer |
+| [ROLE_D.md](docs/ROLE_D.md) | UI and report generator developer |
+| [SUBMISSION.md](docs/SUBMISSION.md) | Report mapping, video outline and submission checks |
+| [OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) | Discrepancies and missing decisions |
+| [DECISIONS.md](docs/DECISIONS.md) | Status, change process and evidence ledger |
+| [AI_USAGE.md](docs/AI_USAGE.md) | Copyable prompts and handoff format |
+| [Lecturer PDF](sources/FOP_Project_Report_Template.pdf) | Original 8-page source document |
+| [Original announcement](sources/ORIGINAL_ANNOUNCEMENT.md) | User-provided announcement transcribed from the referenced chat |
 
-All four teammates should read the shared files, then their role file. Give an AI
-assistant access to the repository and ask it to read `AGENTS.md` and the assigned
-role before coding. Other assistants may need these files attached explicitly.
-No team member names have been assigned to A, B or D in this pack.
+## Start here today
 
-## Get the repository
+- [ ] Fill in member names, group number, OCC and lecturer.
+- [ ] Agree on minimum features, GUI tool, Java version and proposed contracts.
+- [ ] Ask the lecturer about the fourth submission item and whether Scanner is separately required alongside the GUI.
+- [ ] Plan a working offline GUI milestone for 29 November; target development completion on 7 December.
 
-```sh
-git clone https://github.com/ChongHuiEn-2026/MyWords.git
-cd MyWords
-git switch -c feature/your-role-task
-```
-
-Start feature work from the team's approved base after this pack is reviewed.
-Keep one focused PR per task and coordinate changes to shared contracts.
-
-## Development setup: to finalize with the team
-
-1. A confirms a common JDK version, NetBeans project/build format and package
-   layout before generating project files. Swing is proposed; it is not yet set up.
-2. Agree on the interfaces and data formats in `docs/INTEGRATION.md`.
-3. For future AI development only, copy `config.example.txt` to `config.txt` in
-   the working directory. C implements and documents its Java loader. The example
-   is not executable configuration until that loader exists.
-4. C confirms an approved API provider, HTTPS endpoint, model and response schema.
-   Replace placeholders locally. Never commit `config.txt` or an actual key.
-5. B implements local `data/` storage and checked-in fictional fixtures under
-   `examples/data/`. Runtime data and logs are ignored.
-6. When the app exists, A replaces this section with verified build/run commands,
-   JDK version, entry class and offline-demo instructions. No guessed commands
-   are presented as working setup here.
-
-## Important requirements to settle
-
-- GUI plus Java backend is mandatory; a console-only submission is unacceptable.
-- Plain arrays with counters, inheritance/polymorphism, custom exceptions and
-  text-file restart persistence are compulsory.
-- The PDF lists **three** submissions: source ZIP, report and 5-7 minute video.
-  The earlier announcement reportedly listed four. Confirm the fourth item;
-  do not assume it is slides.
-- Confirm whether the earlier Scanner text menu is required in addition to the GUI.
-- Preserve the earlier ten-class target and `AIHelper.ask(String prompt)` plan
-  while seeking clarification. Full source distinctions are in
-  [REQUIREMENTS](docs/REQUIREMENTS.md).
-
-## Safe demos and submissions
-
-Use fictional data. Do not upload runtime `data/`, `ai_log.txt`, personal memory
-or keys to this public repository. `.gitignore` helps prevent accidental additions
-but does not remove files already tracked. The final ZIP must include sanitized
-`.txt` sample data and run instructions, as required by the lecturer.
-
-Saved phrases should work without network access. The user controls each final
-sentence, memory updates and deletion. AI output is always a suggestion.
+The original announcement gives **10 December 2026, 11:00 PM** as the deadline. This pack uses Malaysia time from the conversation; reconfirm the portal's timezone and submission details. Do not infer a different deadline from the report template's blank date field.
