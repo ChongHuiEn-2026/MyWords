@@ -1,111 +1,138 @@
-/** Validates AI candidates and provides saved-phrase/manual fallback choices. */
-public class SuggestionService {
-    /** AI boundary implemented by Role B; this class performs no network calls. */
-    public interface CandidateProvider {
-        Suggestion[] generate(String requestId, String keywords, String contextCode)
-                throws AIServiceException;
-    }
+package mywords.logic;
+
+import java.util.Locale;
+import mywords.model.Phrase;
+import mywords.model.Suggestion;
+
+/** Validates AI candidates and offers relevant saved phrases as fallback. */
+public class SuggestionService
+{
+    public static final int MAX_FALLBACK_CHOICES = 3;
 
     /**
-     * Returns validated candidates, saved-phrase fallback, or a manual draft.
-     * The caller must display the options for the communicator to choose;
-     * this method deliberately never selects one.
+     * Returns matching saved phrases as local choices. This does not require
+     * AI-reuse consent because these choices stay in the app.
      */
-    public Suggestion[] getChoices(String requestId, String profileId,
-                                   String partnerId, String contextCode,
-                                   String keywords, boolean aiSharingEnabled,
-                                   CandidateProvider provider, Phrase[] savedPhrases,
-                                   String manualDraft) {
+    public Suggestion[] savedPhraseFallback(String requestId, String keywords,
+                                            Phrase[] savedPhrases)
+    {
         if (!CommunicationRules.hasText(requestId)
-                || !CommunicationRules.hasText(profileId)
-                || !CommunicationRules.hasText(partnerId)
-                || !CommunicationRules.isKnownContext(contextCode)
-                || !CommunicationRules.isValidKeywords(keywords)) {
-            return manualChoice(requestId, manualDraft);
+                || !CommunicationRules.isValidKeywords(keywords)
+                || savedPhrases == null)
+        {
+            return new Suggestion[0];
         }
 
-        if (aiSharingEnabled && provider != null) {
-            try {
-                Suggestion[] candidates = provider.generate(requestId, keywords, contextCode);
-                if (isValidCandidateSet(candidates)) return copy(candidates);
-            } catch (AIServiceException unavailable) {
-                // Continue to local saved phrases/manual composition.
+        int capacity = Math.min(MAX_FALLBACK_CHOICES, savedPhrases.length);
+        Suggestion[] matches = new Suggestion[capacity];
+        int count = 0;
+
+        for (int i = 0; i < savedPhrases.length && count < capacity; i++)
+        {
+            Phrase phrase = savedPhrases[i];
+            if (phrase == null
+                    || !CommunicationRules.hasText(phrase.getPhraseId())
+                    || !CommunicationRules.isValidSentence(phrase.getConfirmedText())
+                    || !hasKeywordMatch(keywords, phrase.getKeywords()))
+            {
+                continue;
             }
+
+            matches[count] = new Suggestion(
+                    phrase.getPhraseId(),
+                    requestId.trim(),
+                    phrase.getConfirmedText().trim(),
+                    "SAVED");
+            count++;
         }
-        return fallback(requestId, profileId, partnerId, contextCode,
-                keywords, savedPhrases, manualDraft);
+
+        Suggestion[] result = new Suggestion[count];
+        for (int i = 0; i < count; i++)
+        {
+            result[i] = matches[i];
+        }
+        return result;
     }
 
-    /** Requires three nonempty, distinct candidate sentences. */
-    public boolean isValidCandidateSet(Suggestion[] candidates) {
-        if (candidates == null || candidates.length != 3) return false;
-        for (int i = 0; i < candidates.length; i++) {
+    /** Requires exactly three distinct, nonempty candidate sentences. */
+    public boolean isValidCandidateSet(Suggestion[] candidates)
+    {
+        if (candidates == null || candidates.length != 3)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < candidates.length; i++)
+        {
             if (candidates[i] == null
-                    || !CommunicationRules.isValidSentence(candidates[i].text)) return false;
-            for (int j = 0; j < i; j++) {
-                if (candidates[i].text.trim().equalsIgnoreCase(candidates[j].text.trim()))
+                    || !CommunicationRules.isValidSentence(candidates[i].getText()))
+            {
+                return false;
+            }
+
+            for (int j = 0; j < i; j++)
+            {
+                if (candidates[i].getText().trim()
+                        .equalsIgnoreCase(candidates[j].getText().trim()))
+                {
                     return false;
+                }
             }
         }
         return true;
     }
 
-    private Suggestion[] fallback(String requestId, String profileId,
-                                  String partnerId, String contextCode,
-                                  String keywords, Phrase[] savedPhrases,
-                                  String manualDraft) {
-        Suggestion[] localMatches = savedPhraseChoices(requestId, profileId,
-                partnerId, contextCode, keywords, savedPhrases, 3);
-        if (localMatches.length > 0) return localMatches;
-        return manualChoice(requestId, manualDraft);
-    }
-
-    /** Offline saved phrases are local choices; AI consent is not required. */
-    public Suggestion[] savedPhraseChoices(String requestId, String profileId,
-                                           String partnerId, String contextCode,
-                                           String keywords, Phrase[] savedPhrases,
-                                           int limit) {
-        if (savedPhrases == null || limit <= 0) return new Suggestion[0];
-        int max = Math.min(limit, 3);
-        Suggestion[] result = new Suggestion[max];
-        int count = 0;
-        for (int i = 0; i < savedPhrases.length && count < max; i++) {
-            Phrase phrase = savedPhrases[i];
-            if (phrase == null || !CommunicationRules.isValidSentence(phrase.confirmedText)
-                    || !CommunicationRules.isInScope(phrase.profileId, phrase.partnerId,
-                    phrase.contextCode, profileId, partnerId, contextCode)
-                    || !hasKeywordMatch(keywords, phrase.keywords)) continue;
-            result[count] = new Suggestion(phrase.phraseId, requestId,
-                    phrase.confirmedText, "SAVED");
-            count++;
+    private boolean hasKeywordMatch(String request, String saved)
+    {
+        if (!CommunicationRules.hasText(saved))
+        {
+            return false;
         }
-        Suggestion[] compact = new Suggestion[count];
-        for (int i = 0; i < count; i++) compact[i] = result[i];
-        return compact;
-    }
 
-    private boolean hasKeywordMatch(String request, String saved) {
-        if (!CommunicationRules.hasText(request) || !CommunicationRules.hasText(saved)) return false;
-        String[] requestParts = request.toLowerCase().split("[^\\p{L}\\p{N}]+");
-        String normalizedSaved = " " + saved.toLowerCase().replaceAll("[^\\p{L}\\p{N}]+", " ") + " ";
-        for (int i = 0; i < requestParts.length; i++) {
-            if (!requestParts[i].isEmpty() && normalizedSaved.contains(" " + requestParts[i] + " "))
-                return true;
+        String[] requestWords = words(request);
+        String[] savedWords = words(saved);
+
+        for (int i = 0; i < requestWords.length; i++)
+        {
+            for (int j = 0; j < savedWords.length; j++)
+            {
+                if (requestWords[i].equals(savedWords[j]))
+                {
+                    return true;
+                }
+            }
         }
         return false;
     }
 
-    private Suggestion[] manualChoice(String requestId, String manualDraft) {
-        if (!CommunicationRules.isValidSentence(manualDraft)) return new Suggestion[0];
-        return new Suggestion[] { new Suggestion("MANUAL", requestId,
-                manualDraft.trim(), "MANUAL") };
-    }
+    private String[] words(String text)
+    {
+        String normalized = text.toLowerCase(Locale.ROOT);
+        String[] temporary = new String[normalized.length() + 1];
+        int count = 0;
+        int start = -1;
 
-    private Suggestion[] copy(Suggestion[] source) {
-        Suggestion[] result = new Suggestion[source.length];
-        for (int i = 0; i < source.length; i++) {
-            result[i] = new Suggestion(source[i].suggestionId,
-                    source[i].requestId, source[i].text.trim(), source[i].sourceCode);
+        for (int i = 0; i <= normalized.length(); i++)
+        {
+            boolean wordCharacter = i < normalized.length()
+                    && Character.isLetterOrDigit(normalized.charAt(i));
+
+            if (wordCharacter && start < 0)
+            {
+                start = i;
+            }
+            else if (!wordCharacter && start >= 0)
+            {
+                temporary[count] = normalized.substring(start, i);
+                count++;
+                start = -1;
+            }
+        }
+
+        String[] result = new String[count];
+        for (int i = 0; i < count; i++)
+        {
+            result[i] = temporary[i];
         }
         return result;
     }
