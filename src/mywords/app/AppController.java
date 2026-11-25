@@ -6,6 +6,7 @@ package mywords.app;
 import java.io.IOException;
 import mywords.ai.AIHelper;
 import mywords.ai.GenerationRequest;
+import mywords.model.Codes;
 import mywords.exception.AIServiceException;
 import mywords.exception.InvalidInputException;
 import mywords.exception.StorageFullException;
@@ -16,6 +17,7 @@ import mywords.model.Communicator;
 import mywords.model.ConversationPartner;
 import mywords.model.Feedback;
 import mywords.model.Phrase;
+import mywords.model.Supporter;
 import mywords.model.Suggestion;
 import mywords.model.User;
 import mywords.storage.FileManager;
@@ -81,12 +83,116 @@ public class AppController
     }
     public boolean canActiveUserEditProfile()
     {
-        if (activeUser == null) //还没选 user 就不能改
+        return canEdit(activeUser, activeProfileId); //交给下面共用的检查
+    }
+    private boolean canEdit(User actingUser, String profileId)
+    {
+        if (actingUser == null || profileId == null) //没有人或没有 profile -> 不能改
         {
             return false;
         }
-        boolean sameProfile = activeProfileId != null && activeProfileId.equals(activeUser.getProfileId()); //只能改自己关联的 profile
-        return sameProfile && activeUser.canEditProfile(); //用 User 父类 reference 叫 override 的方法 = polymorphism
+        boolean sameProfile = profileId.equals(actingUser.getProfileId()); //只能改自己关联的 profile
+        return sameProfile && actingUser.canEditProfile(); //用 User 父类 reference 叫 override 的方法 = polymorphism
+    }
+    // ===================== 新增 / 修改 profile、partner、supporter (给 Role D 的画面用) =====================
+    public static final int MAX_NAME_LENGTH = 60; //名字长度上限 (提议值)
+    public static final int MAX_STYLE_LENGTH = 120; //语言风格 / 语气 长度上限 (INTEGRATION.md 提议 120)
+    private static String requireName(String text, String fieldName) throws InvalidInputException
+    {
+        if (text == null || text.trim().isEmpty()) //没填
+        {
+            throw new InvalidInputException(fieldName + " cannot be empty.");
+        }
+        String clean = text.trim(); //去掉前后空格
+        if (clean.length() > MAX_NAME_LENGTH) //太长
+        {
+            throw new InvalidInputException(fieldName + " must be " + MAX_NAME_LENGTH + " characters or fewer.");
+        }
+        return clean;
+    }
+    private static String optionalText(String text, String fieldName) throws InvalidInputException
+    {
+        if (text == null) //可以不填 -> 当作空字串
+        {
+            return "";
+        }
+        String clean = text.trim();
+        if (clean.length() > MAX_STYLE_LENGTH)
+        {
+            throw new InvalidInputException(fieldName + " must be " + MAX_STYLE_LENGTH + " characters or fewer.");
+        }
+        return clean; //原样保存,不翻译、不"纠正" slang
+    }
+    public CommunicationProfile createProfile(String communicatorName, String languageStyle, String preferredTone) throws InvalidInputException, StorageFullException, IOException
+    {
+        // 新的说话的人: 一次建 Communicator + 他的 profile (AI 分享默认关闭,要本人自己开)
+        String name = requireName(communicatorName, "Communicator name"); //1. 先检查输入
+        String style = optionalText(languageStyle, "Language style");
+        String tone = optionalText(preferredTone, "Preferred tone");
+        if (fileManager.getUsers().length >= FileManager.MAX_USERS) //2. 先检查两边容量,避免只存一半
+        {
+            throw new StorageFullException("User storage is full (" + FileManager.MAX_USERS + ").");
+        }
+        if (fileManager.getProfiles().length >= FileManager.MAX_PROFILES)
+        {
+            throw new StorageFullException("Profile storage is full (" + FileManager.MAX_PROFILES + ").");
+        }
+        String userId = fileManager.nextId("U"); //3. 拿新的 ID,例如 U003
+        String profileId = fileManager.nextId("P"); //例如 P002
+        CommunicationProfile profile = new CommunicationProfile(profileId, userId, name, style, tone, false); //false = AI 分享先关
+        fileManager.saveProfile(profile); //4. 存 profile
+        fileManager.saveUser(new Communicator(userId, name, profileId)); //再存 user (子类 Communicator)
+        return profile; //回传给画面,方便马上选它
+    }
+    public ConversationPartner createPartner(User actingUser, String profileId, String contextCode, String label, String preferredTone) throws InvalidInputException, StorageFullException, IOException
+    {
+        if (!canEdit(actingUser, profileId)) //没权限 (例如没授权的 Supporter) -> 拒绝
+        {
+            throw new InvalidInputException("This user is not allowed to add conversation partners to this profile.");
+        }
+        if (!Codes.isValid(contextCode, Codes.CONTEXTS)) //只能 FAMILY / FRIENDS / HEALTHCARE
+        {
+            throw new InvalidInputException("Choose FAMILY, FRIENDS or HEALTHCARE.");
+        }
+        String name = requireName(label, "Partner name");
+        String tone = optionalText(preferredTone, "Preferred tone");
+        ConversationPartner partner = new ConversationPartner(fileManager.nextId("CP"), profileId, contextCode, name, tone);
+        fileManager.savePartner(partner); //FileManager 会再检查 profile 存在 + 容量
+        return partner;
+    }
+    public Supporter addSupporter(User actingUser, String profileId, String supporterName, boolean authorized) throws InvalidInputException, StorageFullException, IOException
+    {
+        // 加帮忙的人 + 决定给不给授权: 这是一种同意,所以只有 Communicator 本人可以做
+        if (!(actingUser instanceof Communicator) || !profileId.equals(actingUser.getProfileId()))
+        {
+            throw new InvalidInputException("Only the communicator can add a supporter to their own profile.");
+        }
+        fileManager.getProfile(profileId); //确认 profile 存在 (不存在会 throw)
+        Supporter supporter = new Supporter(fileManager.nextId("U"), requireName(supporterName, "Supporter name"), profileId, authorized);
+        fileManager.saveUser(supporter);
+        return supporter;
+    }
+    public void setSupporterAuthorization(User actingUser, Supporter supporter, boolean authorized) throws InvalidInputException, StorageFullException, IOException
+    {
+        if (!(actingUser instanceof Communicator) || supporter == null || !actingUser.getProfileId().equals(supporter.getProfileId())) //只有同一个 profile 的 Communicator
+        {
+            throw new InvalidInputException("Only the communicator can change this supporter's permission.");
+        }
+        supporter.setSupporterAuthorized(authorized); //改授权
+        fileManager.saveUser(supporter); //saveUser 是 upsert -> 同 ID 会更新
+    }
+    public void updateProfileSettings(User actingUser, String profileId, String languageStyle, String preferredTone) throws InvalidInputException, StorageFullException, IOException
+    {
+        if (!canEdit(actingUser, profileId)) //Communicator: 可以 / 有授权 Supporter: 可以 / 没授权 Supporter: 不行
+        {
+            throw new InvalidInputException("This user is not allowed to change this profile's settings.");
+        }
+        String style = optionalText(languageStyle, "Language style"); //先检查完
+        String tone = optionalText(preferredTone, "Preferred tone");
+        CommunicationProfile profile = fileManager.getProfile(profileId);
+        profile.setLanguageStyle(style); //再改
+        profile.setPreferredTone(tone);
+        fileManager.saveProfile(profile); //存档
     }
     public Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
     {

@@ -83,7 +83,15 @@ boolean canActiveUserEditProfile()                        // polymorphism: User.
 Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
 String getLastFallbackMessage()                           // why AI was not used ("" if AI was used)
 FileManager getFileManager()
+// Create / edit (for D's screens). All validate input and throw InvalidInputException with a user-friendly message.
+CommunicationProfile createProfile(String communicatorName, String languageStyle, String preferredTone)   // new Communicator + profile, AI sharing OFF
+ConversationPartner  createPartner(User actingUser, String profileId, String contextCode, String label, String preferredTone)
+Supporter addSupporter(User actingUser, String profileId, String supporterName, boolean authorized)        // Communicator only
+void setSupporterAuthorization(User actingUser, Supporter supporter, boolean authorized)                   // Communicator only
+void updateProfileSettings(User actingUser, String profileId, String languageStyle, String preferredTone)
+// (all of the above also throw StorageFullException, IOException)
 ```
+Permission rule (polymorphism demo): `createPartner` and `updateProfileSettings` are allowed when `actingUser.canEditProfile()` is true **and** the user belongs to that profile. That means a Communicator is allowed, an authorised Supporter is allowed, and an unauthorised Supporter is refused. Adding or authorising supporters and changing AI sharing are allowed for the **Communicator only**. Limits: names up to 60 characters, style and tone up to 120 characters, text kept exactly as typed (slang is not corrected).
 `requestSuggestions` flow: validate session and keywords → if the profile has AI sharing **off** → C's `savedPhraseFallback`. Otherwise → C's `MemoryManager` selects up to 3 phrases + 2 feedback → B's `AIHelper.generateSuggestions` → if it throws `AIServiceException` → `savedPhraseFallback`. It never returns null.
 
 ### A: `FileManager`
@@ -217,7 +225,7 @@ Shared fictional test cases. Every role tests these:
 ## 8. What each role must do next (deadline: offline milestone 29 Nov, AI milestone 5 Dec, code freeze 8 Dec)
 
 ### Role A: core data and integration
-- [ ] Profile and partner **creation** methods for the UI (add to controller, using `nextId` + `saveProfile` / `savePartner`), so D can build an "add profile / partner" screen.
+- [x] Profile, partner and supporter **creation** and settings methods in `AppController` (section 4). Done 25 Nov, 14 checks passed.
 - [ ] Make `saveX` roll back the in-memory change if writing the file fails (currently memory changes even when the save throws).
 - [ ] Keep this handbook and `docs/DECISIONS.md` updated; final clean build and run instructions in README.
 - [ ] Evidence: inheritance through a `User` reference, restart persistence, `StorageFullException` demo.
@@ -238,8 +246,8 @@ Shared fictional test cases. Every role tests these:
 - [ ] Prepare the comparison scenarios (generic vs memory) together with D for the report.
 
 ### Role D: screens and report
-- [ ] **Profile settings screen**: edit `languageStyle` / `preferredTone`, allowed only when `controller.canActiveUserEditProfile()` is true. This is our visible polymorphism demo (an unauthorised Supporter is refused).
-- [ ] **Add profile / partner screen** (after A adds the controller methods).
+- [ ] **Profile settings screen**: edit `languageStyle` / `preferredTone` via `controller.updateProfileSettings(controller.getActiveUser(), ...)`. Show the error message when an unauthorised Supporter is refused. This is our visible polymorphism demo.
+- [ ] **Add profile / partner / supporter screens** using `createProfile`, `createPartner`, `addSupporter`, `setSupporterAuthorization` (ready now). Reload the dropdowns after creating.
 - [ ] Show who the active user is. Keep the rule that only the Communicator can change AI sharing (already enforced).
 - [ ] Run the section 7 test cases and the bad-input cases; take screenshots for the report.
 - [ ] Keep using `controller` methods for the session. Do not add file reading or writing in the UI.
