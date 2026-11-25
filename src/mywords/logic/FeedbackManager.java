@@ -1,3 +1,8 @@
+package mywords.logic;
+
+import mywords.exception.InvalidInputException;
+import mywords.model.Feedback;
+
 /** Validates a communicator's choice about a candidate sentence. */
 public class FeedbackManager {
     public static final String APPROVE = "APPROVE";
@@ -59,6 +64,24 @@ public class FeedbackManager {
                 contextCode.trim(), keywords.trim(), safeCandidate,
                 normalizedDecision, normalizedReason, safeCorrection,
                 allowAIReuse, createdAt);
+    }
+
+    /**
+     * Integration adapter (added by Role A): keeps the skeleton/INTEGRATION
+     * name createFeedback used by the UI, and delegates to createDecision.
+     * The UI only calls this after the communicator confirmed the text.
+     */
+    public Feedback createFeedback(String feedbackId, String profileId, String partnerId,
+                                   String contextCode, String keywords, String candidateText,
+                                   String decisionCode, String reasonCode, String confirmedText,
+                                   boolean allowAIReuse) throws InvalidInputException {
+        try {
+            return createDecision(feedbackId, profileId, partnerId, contextCode, keywords,
+                    candidateText, decisionCode, reasonCode, confirmedText, true,
+                    allowAIReuse, System.currentTimeMillis());
+        } catch (IllegalArgumentException e) { // turn C's validation error into our custom exception
+            throw new InvalidInputException(e.getMessage());
+        }
     }
 
     /** Storage permission is separate from confirming a message. */
