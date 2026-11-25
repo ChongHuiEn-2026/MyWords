@@ -12,7 +12,7 @@
 
 | Package | Owner | Classes |
 | --- | --- | --- |
-| `mywords.app` | A | `Main`, `AppController`, `DemoData` |
+| `mywords.app` | A | `Main` (GUI), `ConsoleMain` + `ConsoleMenu` (Scanner text menu), `AppController`, `DemoData` |
 | `mywords.model` | A (Feedback, Suggestion: C) | `User`, `Communicator`, `Supporter`, `CommunicationProfile`, `ConversationPartner`, `Phrase`, `Codes`, `Feedback`, `Suggestion` |
 | `mywords.storage` | A | `FileManager`, `RecordCodec` |
 | `mywords.exception` | A (AIServiceException: B) | `InvalidInputException`, `StorageFullException`, `AIServiceException` |
@@ -30,7 +30,8 @@ Search for `TODO Role X` to find your work. Edit only your own package. If you n
 
 ```
 javac -encoding UTF-8 -d out $(find src -name "*.java")
-java -cp out mywords.app.Main
+java -cp out mywords.app.Main          # Swing GUI
+java -cp out mywords.app.ConsoleMain   # Scanner text menu (same data)
 ```
 
 On first run it creates fictional demo data in `data/` (delete that folder to reset). Try: Mei + Ah Ma, keyword `kopi`, Get suggestions.

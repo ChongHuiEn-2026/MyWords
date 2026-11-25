@@ -66,7 +66,7 @@ docs/         shared docs; this handbook is the current contract
 latest_roles/ ARCHIVE copy of older role docs. Do not give it to your AI.
 ```
 
-Run the app with main class **`mywords.app.Main`**. In VS Code, open the `MyWords` folder and press Run above `main`. In NetBeans, use *Java Project with Existing Sources* and add `src`.
+Run the GUI with main class **`mywords.app.Main`**. Run the **Scanner text menu** with **`mywords.app.ConsoleMain`**. Both use the same backend and the same `data/` files (see section 6b). In VS Code, open the `MyWords` folder and press Run above `main`. In NetBeans, use *Java Project with Existing Sources* and add `src`.
 
 ---
 
@@ -198,9 +198,19 @@ build prompt → `ask` → `extractContent` → `parseCandidates` (exactly 3) �
 
 **Approve / Edit / Reject** (D → C → A): the screen only works on the session confirmed with "Use this conversation". C's `createFeedback` builds and validates the record, then A's `recordDecision(feedback, phraseOrNull)` stores both together. Saving the phrase, saving the feedback and allowing AI reuse are each asked separately.
 
+**Approving a `[Saved phrase]` without changing the text** must **not** save it again (that would create a duplicate). The console menu already skips the "save phrase" question in this case. **D: please do the same in `saveDecision`** (skip the phrase consent when `candidate` is SAVED and the confirmed text equals `candidate.getText()`).
+
 **Manual message**: saved as a `Phrase` only (no Feedback, because there is no candidate), using the keywords typed in the Keywords box so it can be found again.
 
 ---
+
+## 6b. Scanner text menu (requirement O04, lecturer question Q02)
+
+The original announcement asks for "a text menu that reads input with Scanner". The lecturer PDF makes a GUI compulsory. Whether both are needed is still **open** (Q02). Until the lecturer answers, we provide **both**:
+- `mywords.app.Main`: Swing GUI (main interface).
+- `mywords.app.ConsoleMain` → `ConsoleMenu` (Role A): a Scanner menu covering choose conversation, create profile, get suggestions (approve/edit/reject), write own message, view/delete phrases, export report, add partner, change style/tone, AI sharing on/off and add supporter.
+- Both call the **same** `AppController` / `FileManager` / `FeedbackManager` / `ReportGenerator`, so **no business logic is duplicated** and they read and write the same `data/` files. If you change a public method, the console menu must still compile.
+- In VS Code: open `src/mywords/app/ConsoleMain.java` and press Run; the menu appears in the Terminal.
 
 ## 7. Malaysian slang and rojak (core MVP feature, restored)
 
@@ -227,7 +237,8 @@ Shared fictional test cases. Every role tests these:
 ### Role A: core data and integration
 - [x] Profile, partner and supporter **creation** and settings methods in `AppController` (section 4). Done 25 Nov, 14 checks passed.
 - [x] Rollback: if writing a file fails, `FileManager` restores its arrays and throws `IOException` ("Nothing was changed"). Done 25 Nov, 7 failure checks passed.
-- [ ] Keep this handbook and `docs/DECISIONS.md` updated; final clean build and run instructions in README.
+- [x] Scanner text menu `ConsoleMain` / `ConsoleMenu` (section 6b). Done 25 Nov, tested with scripted input.
+- [ ] Keep this handbook and `docs/DECISIONS.md` updated; final clean build and run instructions in README. Record the lecturer's Q02 answer.
 - [ ] Evidence: inheritance through a `User` reference, restart persistence, `StorageFullException` demo.
 
 ### Role B: AI (biggest open item, start now)
