@@ -12,6 +12,7 @@ Pack v0.1 prepared 24 November 2026. **Design proposed; no implementation inspec
 | D04 | Proposed | Swing, class design, method/data contracts, privacy controls and dated plan in this pack | New synthesis; no team acceptance supplied |
 | D05 | Open | Fourth deliverable and Scanner-with-GUI discrepancy | S1/S2 conflict; Q01/Q02 |
 | D06 | User-confirmed | Keep the same MyWords app and assign: A group leader/system architect/core data manager; B AI integration; C clinical features/logic; D UI/report generator. Balance the programming workload across all four roles. | Current direct user request and attached role/task screenshots |
+| D07 | Proposed; needs D's review | A rejected candidate must never be reused as an example. If the communicator provides a correction after rejecting it, only that confirmed correction may be reused, and only with separate explicit AI-reuse consent. Rejection without a correction is not shared. | Role C code review on 25 November 2026; confirm with Role D before treating this as the team decision |
 
 ## Accepting or changing a design
 
@@ -27,7 +28,7 @@ No team acceptance is implied merely by receiving this pack. An accepted contrac
 
 | Date MYT | ID / version | Decision and status | Source or approving teammates | Affected documents/code | Migration / next action |
 | --- | --- | --- | --- | --- | --- |
-| — | — | No further decision recorded | — | — | — |
+| 25 Nov 2026 | D07 | Proposed: share only an explicitly confirmed correction from a rejected suggestion, with separate AI-reuse consent; never share the rejected candidate itself. Awaiting Role D review. | Role C proposal; no team approval recorded yet | `src/mywords/logic/CommunicationRules.java`, `docs/TEAM_HANDBOOK.md` | Ask D to review; then record the agreed rule and align the handbook/code if needed |
 
 ## Implementation evidence ledger
 
