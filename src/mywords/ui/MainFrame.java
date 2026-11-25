@@ -86,7 +86,7 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel createSessionPanel() {
-        JPanel panel = new JPanel(new GridLayout(2, 3, 8, 6));
+        JPanel panel = new JPanel(new GridLayout(3, 3, 8, 6));
         panel.setBorder(BorderFactory.createTitledBorder("1. Select the conversation"));
         panel.add(new JLabel("Communicator profile")); panel.add(new JLabel("Current user")); panel.add(new JLabel("Partner/context"));
         panel.add(profiles); panel.add(users); panel.add(partners);
