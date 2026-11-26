@@ -11,6 +11,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -742,7 +743,16 @@ public class FileManager
     }
     public synchronized void appendAILog(String requestId, String profileId, String partnerId, String contextCode, String displayedReply) throws IOException, StorageFullException
     {
+        appendAILogBatch(requestId, profileId, partnerId, contextCode, new String[] {displayedReply}); //一句 = 只有一格的 batch
+    }
+    public synchronized void appendAILogBatch(String requestId, String profileId, String partnerId, String contextCode, String[] displayedReplies) throws IOException, StorageFullException
+    {
+        // 同一个请求的 AI 回复一次写进 log: 要嘛全部写进去,要嘛一行都不留 (不会只记一半)
         // 只记录"要显示给用户的 AI 回复" + 时间/范围;绝对不记 API key 或 prompt
+        if (displayedReplies == null || displayedReplies.length == 0) //没东西要写
+        {
+            return;
+        }
         File folder = new File(dataFolder);
         if (!folder.exists() && !folder.mkdirs())
         {
@@ -750,21 +760,46 @@ public class FileManager
         }
         File log = new File(folder, AI_LOG_FILE);
         boolean isNew = !log.exists(); //新档案要先写标头
-        String line = RecordCodec.join(new String[] {String.valueOf(System.currentTimeMillis()), requestId, profileId, partnerId, contextCode, displayedReply});
-        long extraBytes = line.getBytes(StandardCharsets.UTF_8).length + 2; //这一行大概多少 byte (+2 给换行)
-        if (log.length() + extraBytes > MAX_LOG_BYTES) //超过 5 MB: 不偷偷删旧的,要用户先处理
+        String newline = System.lineSeparator(); //Windows 是 \r\n,和 BufferedWriter.newLine() 一样
+        long now = System.currentTimeMillis(); //同一批用同一个时间
+        StringBuilder block = new StringBuilder(); //1. 先在内存把整批组好
+        if (isNew)
+        {
+            block.append("#MyWords|1|AI_LOG").append(newline);
+        }
+        for (int i = 0; i < displayedReplies.length; i++)
+        {
+            block.append(RecordCodec.join(new String[] {String.valueOf(now), requestId, profileId, partnerId, contextCode, displayedReplies[i]})).append(newline);
+        }
+        byte[] bytes = block.toString().getBytes(StandardCharsets.UTF_8);
+        if (log.length() + bytes.length > MAX_LOG_BYTES) //2. 整批放不下就一行都不写 (不偷偷删旧的)
         {
             throw new StorageFullException("AI log is full (5 MB). Please review or delete " + AI_LOG_FILE + ".");
         }
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(log, true), StandardCharsets.UTF_8))) //true = append 模式,接在档案后面
+        long sizeBefore = log.length(); //记住原本多大,失败时切回去
+        try (FileOutputStream out = new FileOutputStream(log, true)) //3. true = append 模式,整批一次写入
         {
-            if (isNew)
-            {
-                writer.write("#MyWords|1|AI_LOG");
-                writer.newLine();
-            }
-            writer.write(line);
-            writer.newLine();
+            out.write(bytes);
+        }
+        catch (IOException e) //写到一半失败 -> 把写了一半的部分去掉,再丢出错误
+        {
+            undoPartialAppend(log, isNew, sizeBefore);
+            throw new IOException("Could not write " + AI_LOG_FILE + ". No log rows were kept. (" + e.getMessage() + ")", e);
+        }
+    }
+    private static void undoPartialAppend(File log, boolean wasNew, long sizeBefore)
+    {
+        if (wasNew) //原本没有这个档案 -> 直接删掉
+        {
+            log.delete();
+            return;
+        }
+        try (RandomAccessFile file = new RandomAccessFile(log, "rw"))
+        {
+            file.setLength(sizeBefore); //把档案切回原本的长度
+        }
+        catch (IOException ignored) //连切回去都失败,只能交给上面的错误讯息
+        {
         }
     }
     // ===================== delete: 删掉后,后面的往左移一格 =====================

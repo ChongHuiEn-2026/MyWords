@@ -2,7 +2,9 @@
 
 Version: 0.2 | Prepared: 25 November 2026 | Timezone: Asia/Kuala_Lumpur (MYT, UTC+8)
 
-**Planning documentation only. No project repository, code, tests, working features or experimental results were supplied or inspected. The role files now allocate balanced programming modules for the existing MyWords communication-aid app. The attached role screenshots were used to retain its features and redistribute their ownership.**
+> **👉 Start here: [docs/TEAM_HANDBOOK.md](docs/TEAM_HANDBOOK.md)**: what is built now, the real Java API, rules, each role's next tasks and how to run the app and checks. AI assistants: read [AGENTS.md](AGENTS.md) first.
+>
+> **Status (26 Nov 2026):** working Java code in `src/` (A storage/controller, C logic, D Swing GUI, plus a Scanner text menu). Role B's AI integration is in PR #4. Run the GUI with `mywords.app.Main` or the text menu with `mywords.app.ConsoleMain`. The rest of this README describes the original context pack.
 
 This pack describes **MyWords — Let Me Finish My Sentence**, a WIX1002 Fundamentals of Programming (FOP) Hackathon project at Universiti Malaya, Track 3: Healthcare. The app scope remains the same; the revised development roles in `ROLE_A.md`–`ROLE_D.md` redistribute its programming work. Role names are development assignments, distinct from the application's Communicator and Supporter users.
 

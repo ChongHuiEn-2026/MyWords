@@ -486,6 +486,18 @@ public class ConsoleMenu
         CommunicationProfile profile = fileManager.getProfile(controller.getActiveProfileId());
         boolean oldValue = profile.isAiSharingEnabled();
         System.out.println("AI sharing is now " + (oldValue ? "ON" : "OFF") + ".");
+        if (!oldValue) //要开启之前,先清楚说明会送出什么、会存什么
+        {
+            System.out.println("If you turn it ON, each time you ask for suggestions MyWords will:");
+            System.out.println(" - SEND to the external AI service in config.txt: your keywords, this profile's language style,");
+            System.out.println("   the partner's tone and context, and up to 3 saved phrases + 2 feedback records you allowed for AI reuse.");
+            System.out.println(" - SAVE the AI replies shown to you in a local log file (data/ai_log.txt) on this computer.");
+            System.out.println("Nothing is sent while AI sharing is OFF. You can turn it off at any time.");
+        }
+        else
+        {
+            System.out.println("If you turn it OFF, nothing will be sent to the AI. Saved phrases and manual messages still work.");
+        }
         if (!readYesNo("Turn it " + (oldValue ? "OFF" : "ON") + "?"))
         {
             return;
