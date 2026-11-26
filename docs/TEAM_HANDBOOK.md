@@ -251,11 +251,14 @@ Shared fictional test cases. Every role tests these:
 - [ ] Evidence: inheritance through a `User` reference, restart persistence, `StorageFullException` demo.
 
 ### Role B: AI (in PR #4, almost done)
-- [ ] `git pull origin main` into `feature/role-b-ai` (gets the consent fix and `appendAILogBatch`).
-- [ ] In `generateSuggestions`, replace the per-sentence `appendAILog` loop with one `appendAILogBatch(requestId, profileId, partnerId, contextCode, texts)` call, then build the 3 `Suggestion`s.
-- [ ] Update `docs/ROLE_B.md`: the "ask A and D to bind the request to one session" note is done (section 6), and so is the batch log.
-- [ ] Live **Swing** test with fictional data (Mei/Ah Ma, AI sharing ON), record the result in `DECISIONS.md`, then mark PR #4 ready for review.
-- Already done in PR #4: `AIConfig` (keys in section 5, placeholders throw), `AIHelper.ask` (HttpURLConnection, timeouts, byte cap, safe status messages), `PromptBuilder` (section 7 rules, exactly 3 strings), `AIResponseParser` (hand-written scanning, fenced replies), offline fallback, `config.example.txt` only. The demo model decision is under "Team decisions still open".
+- [x] Implement `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser`, and the saved-phrase fallback. Include only the placeholder `config.example.txt`.
+- [x] Bring the click-time consent fix and `appendAILogBatch` from `main` into `feature/role-b-ai`.
+- [x] In `generateSuggestions`, write all three validated replies with one `appendAILogBatch` call before building the `Suggestion` array. Update [the Role B handoff](ROLE_B.md).
+- [x] Compile for Java 17 and run the integrated checks. All 69 Role B assertions and seven Role C groups passed. A stale click produced zero mock calls, a near-full log gained no partial rows, and Swing showed mock AI suggestions and saved-phrase fallback. The four standalone live ILMU checks verified reply format and logging. See [the evidence ledger](DECISIONS.md) and [the wording review](ROLE_B.md#live-wording-review-26-november-2026).
+- [x] Push the verified AI integration commits to draft PR #4.
+- [ ] After Role D updates the Swing enable dialog, bring in that change and test the full Swing flow with fictional Mei/Ah Ma data and AI sharing on. Confirm the demo model with the team and record the live result in `DECISIONS.md`.
+- [ ] Mark PR #4 ready for Role A's review after the live Swing check.
+- [ ] Push the Role B report draft by 3 Dec. Capture figures 04, 14 and 16 for the 5 Dec AI milestone, and prepare the AI walkthrough and missing-key fallback for the video. See [the report guide](REPORT_GUIDE.md).
 
 ### Role C: communication logic
 - [ ] D07 is proposed. Get D's answer and record the final decision.
