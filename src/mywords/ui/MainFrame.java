@@ -24,6 +24,7 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingWorker;
 import mywords.app.AppController;
+import mywords.app.RequestSnapshot;
 import mywords.exception.InvalidInputException;
 import mywords.exception.StorageFullException;
 import mywords.logic.FeedbackManager;
@@ -203,24 +204,24 @@ public class MainFrame extends JFrame {
         String raw = keywords.getText();
         try { validator.validateKeywords(raw); }
         catch (InvalidInputException ex) { showError("Check the keywords", ex); keywords.requestFocus(); return; }
-        lastKeywords = raw.trim();
-        final int requestVersion = controller.getSessionVersion(); // remember which session asked
-        final String requestProfileId = controller.getActiveProfileId();
-        final String requestPartnerId = controller.getActivePartnerId();
+        final RequestSnapshot ticket; // keywords + profile + partner + consent captured at the moment of the click
+        try { ticket = controller.captureRequest(raw); }
+        catch (InvalidInputException ex) { showError("Choose the conversation first", ex); return; }
         setBusy(true, "Loading suggestions. Your text remains available to edit.");
         new SwingWorker<Suggestion[], Void>() {
-            @Override protected Suggestion[] doInBackground() throws Exception { return controller.requestSuggestions(lastKeywords); }
+            @Override protected Suggestion[] doInBackground() throws Exception { return controller.requestSuggestions(ticket); } // uses only the snapshot
             @Override protected void done() {
                 setBusy(false, "Review a possibility; nothing is selected automatically.");
                 try {
                     Suggestion[] result = get();
-                    if (!controller.isCurrentSession(requestVersion, requestProfileId, requestPartnerId)) { // conversation changed while waiting
+                    if (!controller.isCurrentSession(ticket)) { // conversation changed while waiting
                         status.setText("The conversation changed, so the old suggestions were discarded.");
                         return;
                     }
+                    lastKeywords = ticket.getKeywords(); // keywords that belong to the suggestions on screen
                     candidateModel.clear();
                     if (result != null) for (Suggestion s : result) candidateModel.addElement(s);
-                    String fallback = controller.getLastFallbackMessage();
+                    String fallback = ticket.getResultMessage();
                     if (fallback != null && !fallback.isEmpty()) status.setText(fallback);
                     else if (candidateModel.isEmpty()) status.setText("No suggestions found. Try a manual message.");
                     else status.setText("Suggestions are ready. Select one to review it.");

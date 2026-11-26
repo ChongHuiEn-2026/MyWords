@@ -262,10 +262,12 @@ public class ConsoleMenu
     private void getSuggestions() throws InvalidInputException, StorageFullException, IOException
     {
         String keywords = readLine("Keywords (e.g. kopi tomorrow): ");
-        Suggestion[] suggestions = controller.requestSuggestions(keywords); //和 GUI 同一个方法: AI -> 失败就用 saved phrase
-        if (!controller.getLastFallbackMessage().isEmpty())
+        RequestSnapshot ticket = controller.captureRequest(keywords); //按下 Enter 的那一刻拍快照 (和 GUI 一样)
+        Suggestion[] suggestions = controller.requestSuggestions(ticket); //AI -> 失败就用 saved phrase
+        keywords = ticket.getKeywords(); //用快照里整理过的关键词存档
+        if (!ticket.getResultMessage().isEmpty())
         {
-            System.out.println("(" + controller.getLastFallbackMessage() + ")");
+            System.out.println("(" + ticket.getResultMessage() + ")");
         }
         if (suggestions.length == 0)
         {

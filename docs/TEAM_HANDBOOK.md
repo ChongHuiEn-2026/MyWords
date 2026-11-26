@@ -29,7 +29,8 @@ Last updated: **25 November 2026, evening (MYT)** by Role A, after an integratio
 | `AppController` (session, consent check, stale-result check, AI→fallback) | A | Done; SwingWorker lives in D's screen |
 | `SuggestionService.savedPhraseFallback`, `MemoryManager`, `CommunicationRules`, `FeedbackManager` | C | Done (v1) |
 | `MainFrame` screen, `InputValidator`, `ReportGenerator` | D | Done (v1) |
-| `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser` | **B** | **Not started.** `ask()` always throws, so the app always uses saved phrases |
+| `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser` | B (xxianen) | **In draft PR #4**: 54 checks pass with a mock API; live test pending. Until it is merged, `main` still uses saved phrases only |
+| Request snapshot (consent race fix, 26 Nov) | A + D | Done: keywords, profile, partner and consent are captured at the click and re-checked before sending (section 6) |
 
 What you can demo today: choose Mei + Ah Ma → type `kopi` → **Get suggestions** shows `[Saved phrase] Tomorrow kopi with Ah Ma lah.` → approve or edit it → restart → it is still there.
 
@@ -80,8 +81,11 @@ int getSessionVersion()                                   // read before startin
 boolean isCurrentSession(int version, String profileId, String partnerId) // check when the result arrives
 boolean canActiveUserChangeConsent()                      // Communicator of this profile only
 boolean canActiveUserEditProfile()                        // polymorphism: User.canEditProfile() + same profile
-Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
-String getLastFallbackMessage()                           // why AI was not used ("" if AI was used)
+RequestSnapshot captureRequest(String keywords) throws InvalidInputException   // call ON THE UI THREAD at the moment of the click
+Suggestion[] requestSuggestions(RequestSnapshot snapshot) throws InvalidInputException, IOException, StorageFullException // safe in a SwingWorker
+boolean isCurrentSession(RequestSnapshot snapshot)       // use in done() to discard stale results
+Suggestion[] requestSuggestions(String keywords)          // convenience = capture + request at once; ONLY for single-threaded code (console menu, tests)
+String getLastFallbackMessage()                           // prefer snapshot.getResultMessage() (per request)
 FileManager getFileManager()
 // Create / edit (for D's screens). All validate input and throw InvalidInputException with a user-friendly message.
 CommunicationProfile createProfile(String communicatorName, String languageStyle, String preferredTone)   // new Communicator + profile, AI sharing OFF
@@ -92,7 +96,9 @@ void updateProfileSettings(User actingUser, String profileId, String languageSty
 // (all of the above also throw StorageFullException, IOException)
 ```
 Permission rule (polymorphism demo): `createPartner` and `updateProfileSettings` are allowed when `actingUser.canEditProfile()` is true **and** the user belongs to that profile. That means a Communicator is allowed, an authorised Supporter is allowed, and an unauthorised Supporter is refused. Adding or authorising supporters and changing AI sharing are allowed for the **Communicator only**. Limits: names up to 60 characters, style and tone up to 120 characters, text kept exactly as typed (slang is not corrected).
-`requestSuggestions` flow: validate session and keywords → if the profile has AI sharing **off** → C's `savedPhraseFallback`. Otherwise → C's `MemoryManager` selects up to 3 phrases + 2 feedback → B's `AIHelper.generateSuggestions` → if it throws `AIServiceException` → `savedPhraseFallback`. It never returns null.
+`RequestSnapshot` (A, `mywords.app`) getters: `getRequestId, getSessionVersion, getProfileId, getPartnerId, getKeywords, isAiSharingAtClick, getResultMessage`.
+
+`requestSuggestions(snapshot)` flow: if the session changed since the click → `InvalidInputException` ("Nothing was sent"). If AI sharing was off **at the click or now** → → C's `savedPhraseFallback`. Otherwise → C's `MemoryManager` selects up to 3 phrases + 2 feedback → B's `AIHelper.generateSuggestions` → if it throws `AIServiceException` → `savedPhraseFallback`. It never returns null.
 
 ### A: `FileManager`
 ```java
@@ -187,11 +193,12 @@ To reset demo data: close the app, delete the `data` folder, then run again.
 
 ## 6. The main flows (who does what)
 
-**Get suggestions** (D → A → C/B):
-1. D validates keywords, then stores `version = controller.getSessionVersion()` plus the active profile and partner.
-2. D runs `controller.requestSuggestions(keywords)` inside a `SwingWorker` (off the UI thread).
-3. When the result arrives, D calls `controller.isCurrentSession(version, profile, partner)`. If false, it discards the result.
-4. D shows each `Suggestion` labelled `[AI suggestion]` or `[Saved phrase]` with nothing pre-selected, and shows `getLastFallbackMessage()` in the status bar.
+**Get suggestions** (D → A → C/B). *Consent rule: data is only sent for the conversation, keywords and permission that existed when the user clicked.*
+1. D validates keywords, then **on the UI thread** calls `ticket = controller.captureRequest(keywords)`. This captures keywords, profile, partner, AI consent and session version together.
+2. D runs `controller.requestSuggestions(ticket)` inside a `SwingWorker`. The controller uses **only** the ticket. Right before calling B it re-checks: same session, and consent was ON at the click **and** is still ON. Otherwise nothing is sent.
+3. In `done()`, D calls `controller.isCurrentSession(ticket)`. If false, it discards the result. Otherwise it sets `lastKeywords = ticket.getKeywords()`.
+4. D shows each `Suggestion` labelled `[AI suggestion]` or `[Saved phrase]` with nothing pre-selected, and shows `ticket.getResultMessage()` in the status bar.
+5. All public `FileManager` methods are `synchronized`, so the background request never reads arrays that the UI is changing at that moment.
 
 **B's `generateSuggestions`** (the contract D and A rely on):
 build prompt → `ask` → `extractContent` → `parseCandidates` (exactly 3) → for each sentence `fileManager.appendAILog(...)` **before** returning → return 3 `Suggestion`s with source `"AI"`. Any problem → throw `AIServiceException` (never return fake or partial results).
@@ -295,6 +302,7 @@ git push
 | `ui/MainFrame.java` (D) | A manual message is saved as a Phrase only, with the typed keywords | C's rules need a candidate for Feedback; empty keywords made the phrase impossible to find |
 | `ui/MainFrame.java` (D) | Saving uses the confirmed session; stale AI results are discarded; only the Communicator can change AI sharing | Prevents saving to the wrong partner and a Supporter granting consent |
 | `app/AppController.java` (A) | Added session getters, `getSessionVersion`, `isCurrentSession`, `canActiveUserChangeConsent` | Used by the fixes above |
+| 26 Nov: `app/RequestSnapshot.java` (new), `AppController`, `FileManager` (A); `ui/MainFrame.java` (D); `ConsoleMenu` (A) | Request snapshot captured at the click, re-checked before sending; FileManager methods synchronized | B found that a quick conversation switch could send the previous keywords under the new profile's consent. Verified fixed: 10 race checks (including 200 switch-while-sending rounds), B's 54 and C's 7 checks pass together with PR #4 |
 | `AGENTS.md`, `docs/PROJECT_CONTEXT.md`, `docs/INTEGRATION.md`, `config.example.txt`, `.gitignore` | Role letters corrected; Malaysian slang section restored; `.vscode/` and `bin/` ignored | The old AGENTS.md used outdated role letters; the slang section was lost when docs were replaced |
 
 ## 11. Known limitations (be honest in the report)
