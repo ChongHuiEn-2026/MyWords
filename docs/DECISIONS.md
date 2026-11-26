@@ -36,7 +36,7 @@ Use this only after inspecting actual work. Record failed checks as well as pass
 
 | Date MYT | Requirement/task | Actual code revision/files | Check performed | Observed result | Evidence artifact | Owner |
 | --- | --- | --- | --- | --- | --- | --- |
-| — | — | No code or checks supplied | — | Not verified | — | — |
+| 26 Nov 2026 | Role C logic checks on required Java version | `214fa1a`; all `src/` and `tests/` Java files; `RoleCLogicChecks` | JDK 17.0.12: compile with `javac --release 17 -encoding UTF-8`, then run `mywords.logic.RoleCLogicChecks` | Compilation succeeded; all 7 scenario groups (25 assertions) passed | `docs/ROLE_C_CHECKS.md` | C |
 
 ## Shared-contract change request template
 
