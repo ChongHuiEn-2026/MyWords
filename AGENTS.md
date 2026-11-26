@@ -1,6 +1,6 @@
 # MyWords: shared instructions for AI assistants
 
-Version 0.2, 25 November 2026. Every AI tool used on this repository must follow this file. It does not override the tool's own system rules or the current user's explicit instructions.
+Version 0.3, 26 November 2026. Every AI tool used on this repository must follow this file. It does not override the tool's own system rules or the current user's explicit instructions.
 
 ## Read first, in this order
 1. `docs/TEAM_HANDBOOK.md`: **the current, as-built contract.** Real class names, method signatures, codes, file formats, flows and each role's remaining tasks. When it disagrees with another doc, the handbook wins.
@@ -8,7 +8,9 @@ Version 0.2, 25 November 2026. Every AI tool used on this repository must follow
 3. Background only when needed: `docs/PROJECT_CONTEXT.md`, `docs/REQUIREMENTS.md`, `docs/PRIVACY.md`, `docs/OPEN_QUESTIONS.md`, `docs/DECISIONS.md`.
 4. The actual Java files you will touch under `src/mywords/`. Inspect them before editing.
 
-`latest_roles/` is an archive. Ignore it. `docs/INTEGRATION.md` v0.1 was the proposal. The handbook lists what was actually built.
+**Writing the report, planning the video or packaging the submission?** Follow `docs/REPORT_GUIDE.md` exactly (owners, terminology, figure numbers, shared facts).
+
+`latest_roles/` is an archive. Ignore it. `docs/SUBMISSION.md` is the old plan; `REPORT_GUIDE.md` replaces it. `docs/INTEGRATION.md` v0.1 was the proposal. The handbook lists what was actually built.
 
 ## Project
 MyWords: Let Me Finish My Sentence. A UM WIX1002 FOP Hackathon project, Track 3 Healthcare. It is a Java Swing communication aid for Malaysians with expressive aphasia. Typed keywords produce up to three candidate sentences (AI or saved phrases). The communicator approves, edits or rejects them, and only explicitly permitted records are reused. **Malaysian slang and rojak phrasing are core MVP features** (handbook section 7). It is a student prototype: not diagnostic, not clinically validated, and it uses retrieval-based personalization, not model training.
@@ -18,7 +20,7 @@ Working deadline: **10 December 2026, 11:00 PM MYT** (confirm on the portal). Mi
 ## Roles (development roles, not app users)
 | Role | Package(s) | Owns |
 | --- | --- | --- |
-| A | `app`, `model`, `storage`, `exception` | Main, AppController, DemoData, User hierarchy, FileManager, RecordCodec |
+| A | `app`, `model`, `storage`, `exception` | Main, ConsoleMain/ConsoleMenu, AppController, RequestSnapshot, DemoData, User hierarchy, FileManager, RecordCodec |
 | B | `ai` | AIHelper (`String ask(String prompt)`), AIConfig, PromptBuilder, AIResponseParser, GenerationRequest |
 | C | `logic` (+ `Feedback`, `Suggestion` models) | SuggestionService, MemoryManager, CommunicationRules, FeedbackManager |
 | D | `ui` | MainFrame and screens, InputValidator, ReportGenerator |
@@ -33,7 +35,7 @@ Ask which role the user has. Edit only that role's files. If another role's clas
 - Demonstrate a real inheritance hierarchy with polymorphism (`User` → `Communicator`/`Supporter`, `canEditProfile()`), and throw and catch the custom exceptions `InvalidInputException`, `StorageFullException` and `AIServiceException`.
 - Persist all data in `.txt` files via `FileManager` only. Get new IDs from `fileManager.nextId(prefix)`.
 - Every AI HTTP request goes through `AIHelper.ask` using `java.net.HttpURLConnection`. Build and parse JSON with String/char code. No JSON libraries and no AI SDKs.
-- Read keys from local `config.txt` (keys listed in handbook section 5). Never hardcode, log, commit or paste real keys. A missing key or no network must throw `AIServiceException`, which the caller catches so that saved phrases still work. Log every AI reply shown to the user (`FileManager.appendAILog`) before it is displayed.
+- Read keys from local `config.txt` (keys listed in handbook section 5). Never hardcode, log, commit or paste real keys. A missing key or no network must throw `AIServiceException`, which the caller catches so that saved phrases still work. Log every AI reply shown to the user before it is displayed, with one `FileManager.appendAILogBatch(...)` call per request (all rows or none).
 
 ## Behaviour rules
 - Never auto-select, send or save an AI interpretation. Approving a sentence, saving it and allowing AI reuse are separate choices.

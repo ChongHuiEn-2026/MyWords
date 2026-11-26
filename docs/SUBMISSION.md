@@ -1,5 +1,7 @@
 # Report, video and submission plan
 
+> **Superseded (26 Nov 2026): use [REPORT_GUIDE.md](REPORT_GUIDE.md).** The owner letters in the tables below predate the final role allocation and are wrong (for example, arrays and file I/O are Role A, not B). Kept only for history.
+
 **Planning guide only.** Complete the actual lecturer template after the program exists. Do not submit this context pack as a completed project report or use proposal text in the past tense without evidence.
 
 Use `ROLE_A.md`–`ROLE_D.md` for the current proposed ownership: A architecture/data, B AI integration, C communication logic, D UI/report generation. Each member should explain their own code contribution; the request does not identify which role the requesting student holds.

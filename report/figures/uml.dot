@@ -1,0 +1,102 @@
+// MyWords UML class diagram (Graphviz). Render: dot -Tpng uml.dot -o uml.png
+digraph MyWords {
+  graph [rankdir=TB, newrank=true, compound=true, fontname="Helvetica", fontsize=11, nodesep=0.35, ranksep=0.6, label="MyWords – class diagram (key fields and methods only)", labelloc=t, fontsize=16];
+  node  [shape=record, fontname="Helvetica", fontsize=10, style=filled, fillcolor="#FFFFFF"];
+  edge  [fontname="Helvetica", fontsize=9];
+
+  subgraph cluster_model { label="model (A; Feedback/Suggestion: C)"; style=rounded; color="#44AA77"; fontcolor="#226644";
+    User [label="{«abstract»\nUser|- userId : String\l- displayName : String\l- profileId : String\l|+ getTypeCode() : String «abstract»\l+ canEditProfile() : boolean «abstract»\l}", fillcolor="#EAF6EE"];
+    Communicator [label="{Communicator|+ getTypeCode() : String\l+ canEditProfile() : boolean  (always true)\l}", fillcolor="#EAF6EE"];
+    Supporter [label="{Supporter|- supporterAuthorized : boolean\l|+ getTypeCode() : String\l+ canEditProfile() : boolean  (= authorised)\l}", fillcolor="#EAF6EE"];
+    CommunicationProfile [label="{CommunicationProfile|- profileId, ownerUserId : String\l- languageStyle, preferredTone : String\l- aiSharingEnabled : boolean\l}"];
+    ConversationPartner [label="{ConversationPartner|- partnerId, profileId : String\l- contextCode : String\l- label, preferredTone : String\l}"];
+    Phrase [label="{Phrase|- phraseId, keywords : String\l- confirmedText : String\l- allowAIReuse : boolean\l}"];
+    Feedback [label="{Feedback|- decisionCode, reasonCode : String\l- candidateText, confirmedText : String\l- allowAIReuse : boolean\l}"];
+    Suggestion [label="{Suggestion|- text : String\l- sourceCode : String  (AI / SAVED)\l}"];
+    Codes [label="{Codes|+ CONTEXTS, DECISIONS, REASONS : String[]\l|+ isValid(code, allowed) : boolean\l}"];
+  }
+
+  subgraph cluster_storage { label="storage (A)"; style=rounded; color="#4477AA"; fontcolor="#223366";
+    FileManager [label="{FileManager|- users : User[]  - userCount : int\l- phrases : Phrase[]  - phraseCount : int\l- (profiles, partners, feedbacks + counters)\l|+ loadAll() / saveAll()\l+ savePhrase(p) / deletePhrase(...)\l+ recordDecision(f, p)\l+ appendAILogBatch(...)\l+ nextId(prefix) : String\l}", fillcolor="#EAF0FA"];
+    RecordCodec [label="{RecordCodec|+ join(fields) : String\l+ split(line, n) : String[]\l+ escape(value) : String\l}", fillcolor="#EAF0FA"];
+  }
+
+  subgraph cluster_app { label="app (A)"; style=rounded; color="#AA7744"; fontcolor="#663322";
+    AppController [label="{AppController|- activeUser : User\l- sessionVersion : int\l|+ selectSession(user, profileId, partnerId)\l+ captureRequest(keywords) : RequestSnapshot\l+ requestSuggestions(snapshot) : Suggestion[]\l+ createProfile / createPartner / updateProfileSettings\l- canEdit(actingUser, profileId) : boolean\l}", fillcolor="#FAF0E6"];
+    RequestSnapshot [label="{RequestSnapshot|- sessionVersion : int\l- profileId, partnerId, keywords : String\l- aiSharingAtClick : boolean\l}", fillcolor="#FAF0E6"];
+    Main [label="{Main|+ main(args)\l+ createController() : AppController\l}", fillcolor="#FAF0E6"];
+    ConsoleMain [label="{ConsoleMain|+ main(args)\l}", fillcolor="#FAF0E6"];
+    ConsoleMenu [label="{ConsoleMenu|- input : Scanner\l|+ run()\l- readInt(prompt, min, max) : int\l}", fillcolor="#FAF0E6"];
+    DemoData [label="{DemoData|+ createIfEmpty(fm) : boolean\l}", fillcolor="#FAF0E6"];
+  }
+
+  subgraph cluster_ai { label="ai (B)"; style=rounded; color="#AA44AA"; fontcolor="#662266";
+    AIHelper [label="{AIHelper|+ ask(prompt) : String\l+ generateSuggestions(request) : Suggestion[]\l}", fillcolor="#F6EAF6"];
+    AIConfig [label="{AIConfig|+ load(path) : AIConfig\l}", fillcolor="#F6EAF6"];
+    PromptBuilder [label="{PromptBuilder|+ build(request) : String\l}", fillcolor="#F6EAF6"];
+    AIResponseParser [label="{AIResponseParser|+ extractContent(json) : String\l+ parseCandidates(content) : String[]\l}", fillcolor="#F6EAF6"];
+    GenerationRequest [label="{GenerationRequest|- keywords, contextCode : String\l- allowedPhrases : Phrase[]\l- allowedFeedback : Feedback[]\l}", fillcolor="#F6EAF6"];
+  }
+
+  subgraph cluster_logic { label="logic (C)"; style=rounded; color="#77AA44"; fontcolor="#446622";
+    SuggestionService [label="{SuggestionService|+ savedPhraseFallback(...) : Suggestion[]\l}", fillcolor="#F0F6E6"];
+    MemoryManager [label="{MemoryManager|+ selectPhrases(...) : Phrase[]\l+ selectFeedback(...) : Feedback[]\l}", fillcolor="#F0F6E6"];
+    FeedbackManager [label="{FeedbackManager|+ createFeedback(...) : Feedback\l+ createDecision(...) : Feedback\l}", fillcolor="#F0F6E6"];
+    CommunicationRules [label="{CommunicationRules|+ isValidKeywords(...) : boolean\l+ mayShareFeedback(...) : boolean\l}", fillcolor="#F0F6E6"];
+  }
+
+  subgraph cluster_ui { label="ui (D)"; style=rounded; color="#777777"; fontcolor="#333333";
+    JFrame [label="{«Swing»\nJFrame}", fillcolor="#EEEEEE"];
+    MainFrame [label="{MainFrame|- controller : AppController\l|- requestSuggestions()  (SwingWorker)\l- saveDecision(...)\l}", fillcolor="#F4F4F4"];
+    InputValidator [label="{InputValidator|+ validateKeywords(raw) : String\l}", fillcolor="#F4F4F4"];
+    ReportGenerator [label="{ReportGenerator|+ buildReport(phrases) : String\l+ writeReport(text, path)\l}", fillcolor="#F4F4F4"];
+  }
+
+  subgraph cluster_exc { label="exception (A; AIServiceException: B)"; style=rounded; color="#CC4444"; fontcolor="#882222";
+    Exception [label="{«Java»\nException}", fillcolor="#EEEEEE"];
+    InvalidInputException [fillcolor="#FBEAEA"];
+    StorageFullException [fillcolor="#FBEAEA"];
+    AIServiceException [fillcolor="#FBEAEA"];
+  }
+
+  // inheritance (hollow triangle)
+  edge [dir=back, arrowtail=empty, arrowhead=none, style=solid, color="#000000"];
+  User -> Communicator; User -> Supporter;
+  JFrame -> MainFrame;
+  Exception -> InvalidInputException; Exception -> StorageFullException; Exception -> AIServiceException;
+  edge [dir=forward, arrowtail=none];
+
+  // uses / association (open arrow, dashed)
+  edge [arrowhead=vee, style=dashed, color="#555555"];
+  MainFrame -> AppController [label="calls"];
+  ConsoleMenu -> AppController [label="calls"];
+  ConsoleMain -> ConsoleMenu; Main -> MainFrame; Main -> AppController [label="creates"]; ConsoleMain -> Main [label="createController()"];
+  Main -> DemoData;
+  AppController -> FileManager; AppController -> AIHelper; AppController -> MemoryManager; AppController -> SuggestionService;
+  AppController -> RequestSnapshot [label="creates"];
+  AIHelper -> PromptBuilder; AIHelper -> AIResponseParser; AIHelper -> AIConfig; AIHelper -> GenerationRequest;
+  AIHelper -> FileManager [label="appendAILogBatch"];
+  MainFrame -> FeedbackManager; MainFrame -> InputValidator; MainFrame -> ReportGenerator;
+  FeedbackManager -> CommunicationRules; MemoryManager -> CommunicationRules;
+  FileManager -> RecordCodec;
+  edge [style=solid, color="#3366AA", dir=back, arrowtail=odiamond, arrowhead=none];
+  FileManager -> User [label="User[]"];
+  FileManager -> Phrase [label="Phrase[]"];
+  FileManager -> CommunicationProfile;
+  FileManager -> ConversationPartner;
+  FileManager -> Feedback;
+
+  // ---- layout only (invisible) ----
+  edge [style=invis, arrowhead=none, dir=none];
+  { rank=same; JFrame; ConsoleMain; }
+  { rank=same; MainFrame; ConsoleMenu; }
+  { rank=same; AppController; DemoData; InputValidator; ReportGenerator; }
+  { rank=same; AIHelper; SuggestionService; MemoryManager; FeedbackManager; RequestSnapshot; }
+  { rank=same; PromptBuilder; AIResponseParser; AIConfig; GenerationRequest; CommunicationRules; }
+  { rank=same; FileManager; Exception; }
+  { rank=same; User; CommunicationProfile; ConversationPartner; RecordCodec; InvalidInputException; StorageFullException; AIServiceException; }
+  { rank=same; Communicator; Supporter; Phrase; Feedback; Suggestion; Codes; }
+  GenerationRequest -> FileManager; CommunicationRules -> FileManager;
+  FileManager -> User; FileManager -> CommunicationProfile;
+  CommunicationProfile -> Phrase; ConversationPartner -> Feedback;
+}

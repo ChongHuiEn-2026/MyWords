@@ -44,7 +44,7 @@ public class AppController
     {
         return fileManager;
     }
-    public void selectSession(User user, String profileId, String partnerId) throws InvalidInputException
+    public synchronized void selectSession(User user, String profileId, String partnerId) throws InvalidInputException
     {
         if (user == null) //一定要先选 user
         {
@@ -56,32 +56,32 @@ public class AppController
         activePartnerId = partnerId;
         sessionVersion++; //session 换了
     }
-    public String getActiveProfileId()
+    public synchronized String getActiveProfileId()
     {
         return activeProfileId;
     }
-    public String getActivePartnerId()
+    public synchronized String getActivePartnerId()
     {
         return activePartnerId;
     }
-    public User getActiveUser()
+    public synchronized User getActiveUser()
     {
         return activeUser;
     }
-    public int getSessionVersion()
+    public synchronized int getSessionVersion()
     {
         return sessionVersion; //画面在送出请求前记下来,回来时比较
     }
-    public boolean isCurrentSession(int version, String profileId, String partnerId)
+    public synchronized boolean isCurrentSession(int version, String profileId, String partnerId)
     {
         return version == sessionVersion && profileId != null && profileId.equals(activeProfileId) && partnerId != null && partnerId.equals(activePartnerId); //版本 + profile + partner 都一样才算同一个 session
     }
-    public boolean canActiveUserChangeConsent()
+    public synchronized boolean canActiveUserChangeConsent()
     {
         // 同意 (AI 分享) 只能由 communicator 本人改,supporter 就算有授权也不行 (PRIVACY.md)
         return activeUser instanceof Communicator && activeProfileId != null && activeProfileId.equals(activeUser.getProfileId());
     }
-    public boolean canActiveUserEditProfile()
+    public synchronized boolean canActiveUserEditProfile()
     {
         return canEdit(activeUser, activeProfileId); //交给下面共用的检查
     }
@@ -214,10 +214,10 @@ public class AppController
             throw e;
         }
     }
-    public Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
+    public synchronized RequestSnapshot captureRequest(String keywords) throws InvalidInputException
     {
-        // TODO Role A: 之后要放进 SwingWorker (背景执行),并检查回来时 session 有没有换
-        if (activeProfileId == null || activePartnerId == null) //没选 session
+        // 在按下按钮的那一刻 (Swing 的 thread) 调用: 把关键词、session、AI 同意 一起拍成快照
+        if (activeUser == null || activeProfileId == null || activePartnerId == null) //没选 session
         {
             throw new InvalidInputException("Please choose a profile and conversation partner first.");
         }
@@ -225,31 +225,76 @@ public class AppController
         {
             throw new InvalidInputException("Please enter at least one keyword.");
         }
-        CommunicationProfile profile = fileManager.getProfile(activeProfileId);
-        ConversationPartner partner = fileManager.getPartner(activeProfileId, activePartnerId);
-        Phrase[] saved = fileManager.getPhrases(activeProfileId, activePartnerId); //这个 profile + partner 的已保存句子
-        String requestId = "REQ" + System.currentTimeMillis(); //暂时用时间当 ID,之后 Role B 决定格式
-        if (!profile.isAiSharingEnabled()) //没同意分享给 AI -> 直接用 saved phrase
+        boolean aiSharingNow = fileManager.getProfile(activeProfileId).isAiSharingEnabled(); //按下时的同意
+        String requestId = "REQ" + System.currentTimeMillis(); //请求编号
+        return new RequestSnapshot(requestId, sessionVersion, activeProfileId, activePartnerId, keywords.trim(), aiSharingNow);
+    }
+    public synchronized boolean isCurrentSession(RequestSnapshot snapshot)
+    {
+        return snapshot != null && isCurrentSession(snapshot.getSessionVersion(), snapshot.getProfileId(), snapshot.getPartnerId());
+    }
+    private synchronized boolean maySendToAI(RequestSnapshot snapshot) throws InvalidInputException
+    {
+        // 送出前最后检查: session 没换 + 按下时有同意 + 现在还是有同意 (中途被关掉就不送)
+        return isCurrentSession(snapshot) && snapshot.isAiSharingAtClick() && fileManager.getProfile(snapshot.getProfileId()).isAiSharingEnabled();
+    }
+    private Suggestion[] fallback(RequestSnapshot snapshot, Phrase[] saved, String message)
+    {
+        snapshot.setResultMessage(message); //结果说明放进这张快照,画面显示的一定是"这次请求"的说明
+        setLastFallbackMessage(message);
+        return suggestionService.savedPhraseFallback(snapshot.getRequestId(), snapshot.getKeywords(), saved);
+    }
+    private synchronized void setLastFallbackMessage(String message)
+    {
+        lastFallbackMessage = message;
+    }
+    public Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
+    {
+        // 便利版: 立刻拍快照再送出。只适合"同一个 thread 里马上做完"的情况 (文字菜单、测试)
+        // Swing 画面要在按下按钮时先 captureRequest(),再把快照交给 SwingWorker
+        return requestSuggestions(captureRequest(keywords));
+    }
+    public Suggestion[] requestSuggestions(RequestSnapshot snapshot) throws InvalidInputException, IOException, StorageFullException
+    {
+        // 可以在背景 thread (SwingWorker) 调用;只用快照里的资料,不读"现在"的 session
+        if (snapshot == null)
         {
-            lastFallbackMessage = "AI sharing is off. Showing saved phrases.";
-            return suggestionService.savedPhraseFallback(requestId, keywords, saved);
+            throw new InvalidInputException("Missing request.");
         }
-        Feedback[] feedback = fileManager.getFeedback(activeProfileId, activePartnerId);
-        Phrase[] memPhrases = memoryManager.selectPhrases(keywords, partner.getContextCode(), saved, MemoryManager.MAX_PHRASES); //Role C 挑相关的
-        Feedback[] memFeedback = memoryManager.selectFeedback(keywords, partner.getContextCode(), feedback, MemoryManager.MAX_FEEDBACK);
-        GenerationRequest request = new GenerationRequest(requestId, activeProfileId, activePartnerId, partner.getContextCode(), keywords.trim(), profile.getLanguageStyle(), partner.getPreferredTone(), true, memPhrases, memFeedback);
+        if (!isCurrentSession(snapshot)) //按下之后、开始之前就换了对话 -> 什么都不送
+        {
+            throw new InvalidInputException("The conversation changed before the request was sent. Nothing was sent.");
+        }
+        String profileId = snapshot.getProfileId(); //全部用快照里的 ID
+        String partnerId = snapshot.getPartnerId();
+        CommunicationProfile profile = fileManager.getProfile(profileId);
+        ConversationPartner partner = fileManager.getPartner(profileId, partnerId);
+        Phrase[] saved = fileManager.getPhrases(profileId, partnerId); //这个 profile + partner 的已保存句子
+        if (!snapshot.isAiSharingAtClick() || !profile.isAiSharingEnabled()) //按下时或现在没同意 -> 只用 saved phrase
+        {
+            return fallback(snapshot, saved, "AI sharing is off. Showing saved phrases.");
+        }
+        Feedback[] feedback = fileManager.getFeedback(profileId, partnerId);
+        Phrase[] memPhrases = memoryManager.selectPhrases(snapshot.getKeywords(), partner.getContextCode(), saved, MemoryManager.MAX_PHRASES); //Role C 挑相关的
+        Feedback[] memFeedback = memoryManager.selectFeedback(snapshot.getKeywords(), partner.getContextCode(), feedback, MemoryManager.MAX_FEEDBACK);
+        GenerationRequest request = new GenerationRequest(snapshot.getRequestId(), profileId, partnerId, partner.getContextCode(), snapshot.getKeywords(), profile.getLanguageStyle(), partner.getPreferredTone(), true, memPhrases, memFeedback);
+        if (!maySendToAI(snapshot)) //送出前再检查一次 (准备资料的时候可能换了对话或关了同意)
+        {
+            throw new InvalidInputException("The conversation or AI permission changed before sending. Nothing was sent.");
+        }
         try
         {
-            lastFallbackMessage = "";
-            return aiHelper.generateSuggestions(request); //Role B: 真正问 AI
+            Suggestion[] result = aiHelper.generateSuggestions(request); //Role B: 真正问 AI
+            snapshot.setResultMessage("");
+            setLastFallbackMessage("");
+            return result;
         }
         catch (AIServiceException e) //没 key / 没网络 / 格式错 -> 不让 app 死,改用 saved phrase
         {
-            lastFallbackMessage = "AI unavailable: " + e.getMessage() + " Showing saved phrases.";
-            return suggestionService.savedPhraseFallback(requestId, keywords, saved);
+            return fallback(snapshot, saved, "AI unavailable: " + e.getMessage() + " Showing saved phrases.");
         }
     }
-    public String getLastFallbackMessage()
+    public synchronized String getLastFallbackMessage()
     {
         return lastFallbackMessage;
     }
