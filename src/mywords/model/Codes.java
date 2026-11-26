@@ -6,7 +6,7 @@ package mywords.model;
 public class Codes
 {
     // Owner: Role A. 全组共用的 code 常量 + 检查方法 (INTEGRATION.md §1)
-    public static final String[] CONTEXTS = {"FAMILY", "FRIENDS", "HEALTHCARE"}; //对话场景
+    public static final String[] CONTEXTS = {"FAMILY", "FRIENDS", "HEALTHCARE", "OTHERS"}; //对话场景
     public static final String[] DECISIONS = {"APPROVE", "EDIT", "REJECT"}; //用户对候选句的决定
     public static final String[] REASONS = {"NONE", "WRONG_MEANING", "WRONG_TONE", "WRONG_PERSON_CONTEXT", "OTHER_UNSURE"}; //拒绝原因
     public static final String SOURCE_AI = "AI"; //候选句来自 AI

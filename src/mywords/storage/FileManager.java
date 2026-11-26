@@ -843,6 +843,56 @@ public class FileManager
         removeFeedbackAt(index);
         commit();
     }
+    public synchronized String[][] loadBrowserRecords()
+            throws IOException, InvalidInputException, StorageFullException
+    {
+        String[] lines = readDataLines("browser.txt", "BROWSER", 620);
+        String[][] result = new String[lines.length][];
+        for (int i = 0; i < lines.length; i++)
+        {
+            result[i] = parseLine(lines[i], 10, "browser.txt", i);
+        }
+        return result;
+    }
+
+    public synchronized void saveBrowserRecords(String[][] records) throws IOException
+    {
+        String[] lines = new String[records.length];
+        for (int i = 0; i < records.length; i++)
+        {
+            lines[i] = RecordCodec.join(records[i]);
+        }
+        writeDataFile("browser.txt", "BROWSER", lines);
+    }
+
+    public synchronized void deletePartner(String profileId, String partnerId)
+            throws InvalidInputException, IOException
+    {
+        getPartner(profileId, partnerId);
+        backup();
+        for (int i = phraseCount - 1; i >= 0; i--)
+        {
+            if (phrases[i].getPartnerId().equals(partnerId))
+            {
+                removePhraseAt(i);
+            }
+        }
+        for (int i = feedbackCount - 1; i >= 0; i--)
+        {
+            if (feedbacks[i].getPartnerId().equals(partnerId))
+            {
+                removeFeedbackAt(i);
+            }
+        }
+        int index = findPartnerIndex(partnerId);
+        for (int i = index; i < partnerCount - 1; i++)
+        {
+            partners[i] = partners[i + 1];
+        }
+        partners[--partnerCount] = null;
+        commit();
+    }
+
     public synchronized void deleteProfileData(String profileId) throws IOException
     {
         // 删掉这个 profile 的所有句子和 feedback (profile 和 partner 本身保留)

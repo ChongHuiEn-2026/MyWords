@@ -172,3 +172,15 @@ FB001|P001|CP001|FAMILY|kopi tomorrow|Please buy me coffee.|REJECT|WRONG_MEANING
 - [ ] Restart preserves consent flags, scope and all confirmed records intended for persistence.
 
 Before implementation, review these proposed signatures together and resolve the provider/Java/package decisions in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+
+
+## Browser GUI integration branch
+
+Requester decision recorded 27 November 2026. Use Role D’s GitHub `MyWords.html` as the GUI and move the browser application’s persistent data and AI workflow into Java. The source HTML blob used for this branch is `55bc7059a399712587c81cdb7da076de95d3ac78`. The implementation is a local integration candidate for team review.
+
+- `mywords.web.BrowserMain` serves the page, JavaScript and built CSS at `127.0.0.1`. The browser sends same-origin form POSTs and receives JSON results. Session tokens are in an HttpOnly cookie. Java validates and bounds form input.
+- The conversation flow uses `AppController.selectSession`, `captureRequest` and `requestSuggestions`. Role B’s prompt, HTTPS gateway, parser and batch logging remain the same. Browser cards show the Java source label. Reuse of saved phrases and feedback is opt-in per record. Browser speech uses installed on-device voices.
+- Role A’s `FileManager` continues to write the core data files and the AI log. `browser.txt` also uses `RecordCodec` and begins with `#MyWords|1|BROWSER`. It has up to 620 ten-field rows. Fields begin with type, profile ID and record ID. `ACCOUNT` adds email, salted password digest, voice preference, UI language, theme and font size. `PARTNER` adds relationship and call phrase. `NEED` adds topic and label. `REASON` adds an optional local rejection explanation. Unused fields are empty. Quick needs are limited to 20 per profile. Existing Java records keep their format and can be loaded together with these new records.
+- `OTHERS` is the fourth conversation code for Role D’s fourth contact category. Scope still uses Java profile and partner IDs. A browser account is a Communicator account. The local Java desktop and console continue to handle the Supporter role.
+- Reports use `ReportGenerator` and contain only explicitly selected stored phrases in the active conversation. The browser previews the returned text and downloads a `.txt` file when the user confirms.
+- Keep runtime data and `config.txt` local. The earlier HTML’s browser records are excluded from migration. The Java version expects new browser accounts and preserves existing Java data.
