@@ -28,11 +28,11 @@ Show a clearly labeled live or mock response and exercise missing-key, offline, 
 2. `PromptBuilder.build` writes the selected context, language style, partner tone and keywords as quoted data. It adds up to three permitted saved phrases and two permitted feedback examples from that conversation. It asks for different phrasings of the same action, recipient and timing, and for local expressions like `tapau` and `yum cha` in casual wording.
 3. `AIHelper.ask` sends the HTTPS POST with `HttpURLConnection` and returns the provider's JSON response. It uses the API key in the authorization header and requests a low sampling temperature of `0.1` to reduce wording variability. The configured timeouts and byte limit bound the read, and messages for failed requests contain only safe summaries. [ILMU Chat Completions parameters](https://docs.ilmu.ai/docs/api/chat-completions#parameters)
 4. `AIResponseParser.extractContent` finds `choices[0].message.content`. The cursor is an integer that advances through the JSON one character at a time. That lets `parseCandidates` recognize a comma inside quotes as part of a sentence, decode escapes, and reject replies without three distinct, usable candidates.
-5. `AIHelper.generateSuggestions` checks consent before sending and asks `FileManager` to append each validated suggestion before returning it. If config, networking, parsing, or logging fails, `AppController` can show saved phrases.
+5. `AIHelper.generateSuggestions` checks the request's consent flag and asks `FileManager.appendAILogBatch` to log all three validated suggestions before returning them. If the batch does not fit, the log keeps its existing rows and adds none from that request. If config, networking, parsing, or logging fails, `AppController` can show saved phrases.
 
 ## Evaluator setup
 
-Ask Roles A and D to bind the Swing request to a single session and its consent before enabling a live provider. Currently the worker reads mutable keywords and the controller reads the active conversation separately. Changing conversations at that moment can pair old input with a different profile's consent. The enable screen should explain provider transmission and local AI-output logging together before asking for consent.
+Swing captures the keywords, profile, partner and AI-sharing setting together when **Get suggestions** is clicked. The controller checks the captured conversation and consent again before calling the AI helper. The remaining Swing task is for Role D to explain provider transmission and local suggestion logging together in the enable dialog. The console already shows both disclosures.
 
 Copy `config.example.txt` to `config.txt` in the working directory used by Java. Set the full HTTPS Chat Completions URL, model ID and key locally. The service must accept a Bearer API key and a JSON POST with `model` and `messages`, then return one choice with the generated text in `choices[0].message.content`.
 
@@ -50,7 +50,7 @@ javac --release 17 -encoding UTF-8 -d "$classes" $(find src tests -name '*.java'
 (cd "$classes" && java -cp . mywords.ai.RoleBAIChecks)
 ```
 
-The checks use a temporary working directory for fictional data and a stub provider reply. They verify that all four handbook language cases pass their keywords, context, style and partner tone into the prompt. Log rows are written through the existing `FileManager` API one at a time. If a later write fails or Swing discards a stale response, the log can contain rows the user did not see. Role A can address partial writes with a batch append, coordinated with Roles B and D.
+The checks use fictional data and a stub provider reply. They verify that all four handbook language cases pass their keywords, context, style and partner tone into the prompt. They also cover a stale click, a change to consent before dispatch, and a log with room for only one of the three suggestions. A request blocked by a conversation switch before dispatch generates no mock-provider call or log. If the user changes conversations while the AI is already answering, Swing may discard the result after the validated suggestions have been logged locally.
 
 ## Check the API with fictional input
 
@@ -78,4 +78,4 @@ The final run used ILMU Mini v3.3 (`ilmu-mini-v3.3`) with one fictional request 
 | Family | All three kept `tomorrow`, `Ah Ma` and `yum cha` without adding a separate plan. | Three of three fit the case. |
 | Healthcare | All three asked for immediate speech and added no symptoms or advice. They addressed the nurse directly, with one using the more forceful wording “I require”. | Preferred framing and tone still need review. |
 
-For a full Swing live demo, use the consent flow once the controller and screen bind requests to the same conversation.
+The integrated Swing flow has passed with a local HTTPS mock and offline saved phrases. The live Swing test with fictional data is pending Role D's enable-dialog update.

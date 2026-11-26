@@ -145,23 +145,21 @@ public class AIHelper
 
         String reply = ask(promptBuilder.build(request));
         String[] texts = parser.parseCandidates(parser.extractContent(reply));
-        Suggestion[] result = new Suggestion[texts.length];
-        synchronized (fileManager)
+        try
         {
-            for (int i = 0; i < texts.length; i++)
-            {
-                try
-                {
-                    fileManager.appendAILog(request.getRequestId(), request.getProfileId(),
-                            request.getPartnerId(), request.getContextCode(), texts[i]);
-                }
-                catch (IOException | StorageFullException e)
-                {
-                    throw new AIServiceException("Could not write the local AI log. Check storage space and access.");
-                }
-                result[i] = new Suggestion(request.getRequestId() + "-" + (i + 1),
-                        request.getRequestId(), texts[i], Codes.SOURCE_AI);
-            }
+            fileManager.appendAILogBatch(request.getRequestId(), request.getProfileId(),
+                    request.getPartnerId(), request.getContextCode(), texts);
+        }
+        catch (IOException | StorageFullException e)
+        {
+            throw new AIServiceException("Could not write the local AI log. Check storage space and access.");
+        }
+
+        Suggestion[] result = new Suggestion[texts.length];
+        for (int i = 0; i < texts.length; i++)
+        {
+            result[i] = new Suggestion(request.getRequestId() + "-" + (i + 1),
+                    request.getRequestId(), texts[i], Codes.SOURCE_AI);
         }
         return result;
     }

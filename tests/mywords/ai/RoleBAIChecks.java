@@ -1,14 +1,23 @@
 package mywords.ai;
 
+import java.io.RandomAccessFile;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import mywords.app.AppController;
+import mywords.app.DemoData;
 import mywords.app.Main;
+import mywords.app.RequestSnapshot;
 import mywords.exception.AIServiceException;
+import mywords.exception.InvalidInputException;
+import mywords.logic.MemoryManager;
+import mywords.logic.SuggestionService;
 import mywords.model.Codes;
+import mywords.model.CommunicationProfile;
 import mywords.model.Feedback;
 import mywords.model.Phrase;
 import mywords.model.Suggestion;
+import mywords.model.User;
 import mywords.storage.FileManager;
 
 /** Offline checks and opt-in live cases using fictional text. */
@@ -60,6 +69,7 @@ public class RoleBAIChecks
             checkLanguagePrompts();
             checkGeneration();
             checkFallback();
+            checkConsentSnapshot();
             System.out.println("Role B AI checks passed: " + assertions);
         }
         finally
@@ -241,6 +251,17 @@ public class RoleBAIChecks
                     "FAMILY", "kopi", "", "", true, new Phrase[0], new Feedback[0]);
             check(ai.generateSuggestions(defaultStyle).length == 3, "blank optional preferences work");
 
+            // Leave room for one reply row but too little for all three.
+            long nearCapacity = FileManager.MAX_LOG_BYTES - 120;
+            try (RandomAccessFile file = new RandomAccessFile(log.toFile(), "rw"))
+            {
+                file.setLength(nearCapacity);
+            }
+            AIServiceException fullLog = expectAI(
+                    () -> ai.generateSuggestions(request(true, new Phrase[0], new Feedback[0])), "full log batch");
+            check(fullLog.getMessage().contains("local AI log"), "a full log reports the logging failure");
+            check(Files.size(log) == nearCapacity, "a rejected batch leaves no partial log rows");
+
             Files.delete(log);
             Files.createDirectory(log);
             expectAI(() -> ai.generateSuggestions(request(true, new Phrase[0], new Feedback[0])), "unwritable log");
@@ -265,6 +286,65 @@ public class RoleBAIChecks
                 && app.getLastFallbackMessage().contains("config.txt"), "missing config shows saved phrase and a safe reason");
     }
 
+    private static void checkConsentSnapshot() throws Exception
+    {
+        Path folder = Files.createTempDirectory("mywords-role-b-consent-");
+        try
+        {
+            checkConsentSnapshot(folder);
+        }
+        finally
+        {
+            try (DirectoryStream<Path> entries = Files.newDirectoryStream(folder))
+            {
+                for (Path entry : entries)
+                {
+                    Files.delete(entry);
+                }
+            }
+            Files.delete(folder);
+        }
+    }
+
+    private static void checkConsentSnapshot(Path folder) throws Exception
+    {
+        FileManager files = new FileManager(folder.toString());
+        DemoData.createIfEmpty(files);
+        StubAI ai = new StubAI(files, ENVELOPE);
+        AppController app = new AppController(files, ai, new MemoryManager(), new SuggestionService());
+        User communicator = files.getUsers()[0];
+        CommunicationProfile profile = files.getProfile("P001");
+        app.selectSession(communicator, "P001", "CP001");
+
+        RequestSnapshot sharingOff = app.captureRequest("kopi");
+        profile.setAiSharingEnabled(true);
+        check(Codes.SOURCE_SAVED.equals(app.requestSuggestions(sharingOff)[0].getSourceCode()) && ai.calls == 0,
+                "turning on sharing after the click sends no request");
+
+        RequestSnapshot sharingRevoked = app.captureRequest("kopi");
+        profile.setAiSharingEnabled(false);
+        check(Codes.SOURCE_SAVED.equals(app.requestSuggestions(sharingRevoked)[0].getSourceCode()) && ai.calls == 0,
+                "turning off sharing before dispatch sends no request");
+
+        profile.setAiSharingEnabled(true);
+        RequestSnapshot oldClick = app.captureRequest("kopi");
+        app.selectSession(communicator, "P001", "CP002");
+        try
+        {
+            app.requestSuggestions(oldClick);
+            throw new AssertionError("a click from the previous conversation should be rejected");
+        }
+        catch (InvalidInputException expected)
+        {
+            check(ai.calls == 0 && Files.notExists(folder.resolve("ai_log.txt")),
+                    "a stale click sends zero mock requests and writes no log");
+        }
+
+        Suggestion[] current = app.requestSuggestions(app.captureRequest("speak now"));
+        check(current.length == 3 && Codes.SOURCE_AI.equals(current[0].getSourceCode()) && ai.calls == 1,
+                "a current consented click reaches the mock provider once");
+    }
+
     private static GenerationRequest request(boolean consent, Phrase[] phrases, Feedback[] feedback)
     {
         return FAMILY_CASE.request(consent, phrases, feedback);
@@ -284,7 +364,7 @@ public class RoleBAIChecks
         return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
-    private static void expectAI(Check action, String scenario) throws Exception
+    private static AIServiceException expectAI(Check action, String scenario) throws Exception
     {
         try
         {
@@ -294,6 +374,7 @@ public class RoleBAIChecks
         catch (AIServiceException expected)
         {
             check(!expected.getMessage().contains("fictional-key"), scenario + " does not report the key");
+            return expected;
         }
     }
 
