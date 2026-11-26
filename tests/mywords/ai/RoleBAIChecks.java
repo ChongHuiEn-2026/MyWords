@@ -35,6 +35,16 @@ public class RoleBAIChecks
 
     public static void main(String[] args) throws Exception
     {
+        if (args.length > 0)
+        {
+            if (args.length != 1 || !"--live".equals(args[0]))
+            {
+                throw new IllegalArgumentException("Run without arguments for offline checks or use --live for one fictional request.");
+            }
+            checkLiveProvider();
+            return;
+        }
+
         Path config = Files.createTempFile("mywords-role-b-", ".txt");
         try
         {
@@ -48,6 +58,32 @@ public class RoleBAIChecks
         finally
         {
             Files.deleteIfExists(config);
+        }
+    }
+
+    private static void checkLiveProvider() throws Exception
+    {
+        System.out.println("Live check: sends fictional keywords, context and style to the configured AI provider.");
+        System.out.println("The three replies are logged in a temporary directory and then printed.");
+        Path folder = Files.createTempDirectory("mywords-role-b-live-");
+        Path log = folder.resolve("ai_log.txt");
+        try
+        {
+            AIHelper ai = new AIHelper(new FileManager(folder.toString()));
+            Suggestion[] results = ai.generateSuggestions(request(true, new Phrase[0], new Feedback[0]));
+            check(results.length == 3 && Files.readString(log).split("\\R").length == 4,
+                    "three suggestions logged before display");
+            for (Suggestion suggestion : results)
+            {
+                check(Codes.SOURCE_AI.equals(suggestion.getSourceCode()), "live result source is AI");
+                System.out.println(suggestion.getText());
+            }
+            System.out.println("Live Role B check passed: three logged AI suggestions.");
+        }
+        finally
+        {
+            Files.deleteIfExists(log);
+            Files.delete(folder);
         }
     }
 
@@ -141,7 +177,7 @@ public class RoleBAIChecks
             Suggestion[] suggestions = ai.generateSuggestions(request(true, new Phrase[0], new Feedback[0]));
             check(suggestions.length == 3 && Codes.SOURCE_AI.equals(suggestions[0].getSourceCode()), "three AI suggestions");
             String logText = Files.readString(log);
-            check(logText.lines().count() == 4 && logText.contains(suggestions[2].getText()), "all three logged before return");
+            check(logText.split("\\R").length == 4 && logText.contains(suggestions[2].getText()), "all three logged before return");
             check(!logText.contains("tomorrow, Ah Ma, yum cha"), "raw prompt stays out of log");
             GenerationRequest defaultStyle = new GenerationRequest("REQ-test", "P-test", "CP-test",
                     "FAMILY", "kopi", "", "", true, new Phrase[0], new Feedback[0]);

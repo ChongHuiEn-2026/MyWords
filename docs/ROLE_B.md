@@ -34,7 +34,7 @@ Show a clearly labeled live or mock response and exercise missing-key, offline, 
 
 Ask Roles A and D to bind the Swing request to a single session and its consent before enabling a live provider. Currently the worker reads mutable keywords and the controller reads the active conversation separately. Changing conversations at that moment can pair old input with a different profile's consent. The enable screen should explain provider transmission and local AI-output logging together before asking for consent.
 
-Once the team has approved the provider and is ready for a fictional live demo, copy `config.example.txt` to `config.txt` in the working directory used by Java. Set the full HTTPS chat-completions URL, model and key locally. The proposed ILMU settings are `https://api.ilmu.ai/v1/chat/completions` and `ilmu-mini-v3.3`. Confirm account access, credits and request-logging settings with the team. [ILMU Quickstart](https://docs.ilmu.ai/docs/getting-started/quickstart) · [ILMU Chat Completions](https://docs.ilmu.ai/docs/api/chat-completions)
+Copy `config.example.txt` to `config.txt` in the working directory used by Java. Set the full HTTPS Chat Completions URL, model ID and key locally. The service must accept a Bearer API key and a JSON POST with `model` and `messages`, then return one choice with the generated text in `choices[0].message.content`.
 
 The default values in the template are 10,000 ms to connect, 20,000 ms to read and 65,536 response bytes. The application uses saved phrases while the local file is missing or contains placeholders. Only the communicator should enable AI sharing after reading what will be sent. Use fictional demo data. Keep `config.txt` and runtime `data/` local.
 
@@ -51,3 +51,13 @@ javac --release 17 -encoding UTF-8 -d "$classes" $(find src tests -name '*.java'
 ```
 
 The checks use a temporary working directory for fictional data and a stub provider reply. Log rows are written through the existing `FileManager` API one at a time. If a later write fails or Swing discards a stale response, the log can contain rows the user did not see. Role A can address partial writes with a batch append, coordinated with Roles B and D.
+
+## Check the API with fictional input
+
+From the repository root, run the compile commands above and then run:
+
+```sh
+java -cp "$classes" mywords.ai.RoleBAIChecks --live
+```
+
+This sends one fictional request to the local configuration's AI endpoint using the same Role B code as the app. It sends no saved memories and uses a temporary directory for the log. It checks and displays three replies before deleting the temporary log. Use this to verify the endpoint and model independently of Swing. For a full Swing live demo, use the consent flow once the controller and screen bind requests to the same conversation.
