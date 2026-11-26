@@ -43,6 +43,14 @@ project's required Java 17 runtime still needs a separate check. The normal
 `javac` launcher on this machine did not return, so the successful run used
 `C:\Program Files\Java\jdk-16.0.2\bin\javac.exe` and the matching `java.exe`.
 
+### Java 17 follow-up (26 November 2026)
+
+**Passed with JDK 17.0.12.** Compiled all Java files under `src/` and `tests/`
+using `javac --release 17 -encoding UTF-8`, then ran
+`mywords.logic.RoleCLogicChecks`. Compilation succeeded and all 7 scenario
+groups (25 assertions) passed. Classes were written to a temporary directory;
+no generated files were added to the repository.
+
 Scope note: `MemoryManager` filters by context and consent. It receives
 profile/partner-scoped arrays from `FileManager` through `AppController`; this
 harness checks context isolation, not profile/partner filtering inside
