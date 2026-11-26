@@ -2,7 +2,7 @@
 
 Version: 0.2 | Prepared: 25 November 2026 | Timezone: Asia/Kuala_Lumpur (MYT, UTC+8)
 
-> **👉 Start here: [docs/TEAM_HANDBOOK.md](docs/TEAM_HANDBOOK.md)**: what is built now, the real Java API, rules, each role's next tasks and how to run the app and checks. AI assistants: read [AGENTS.md](AGENTS.md) first.
+> **👉 Start here: [docs/TEAM_HANDBOOK.md](docs/TEAM_HANDBOOK.md)**: what is built now, the real Java API, rules, each role's next tasks and how to run the app and checks. AI assistants: read [AGENTS.md](AGENTS.md) first. Report, video and submission: [docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md).
 >
 > **Status (26 Nov 2026):** working Java code in `src/` (A storage/controller, C logic, D Swing GUI, plus a Scanner text menu). Role B's AI integration is in PR #4. Run the GUI with `mywords.app.Main` or the text menu with `mywords.app.ConsoleMain`. The rest of this README describes the original context pack.
 

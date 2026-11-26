@@ -2,7 +2,7 @@
 
 Last updated: **26 November 2026, afternoon (MYT)** by Role A, after reviewing `main` and Role B's PR #4.
 
-**This is the single source of truth for the code that exists now.** Give this file to your AI assistant together with `AGENTS.md` and your `docs/ROLE_X.md`. When this handbook and an older doc disagree, this handbook wins. `docs/INTEGRATION.md` v0.1 was the *proposal*. Section 4 below lists the *actual* signatures in `src/`.
+**This is the single source of truth for the code that exists now.** For the report, video and ZIP, use [`REPORT_GUIDE.md`](REPORT_GUIDE.md). Give this file to your AI assistant together with `AGENTS.md` and your `docs/ROLE_X.md`. When this handbook and an older doc disagree, this handbook wins. `docs/INTEGRATION.md` v0.1 was the *proposal*. Section 4 below lists the *actual* signatures in `src/`.
 
 ---
 
@@ -278,6 +278,7 @@ Shared fictional test cases. Every role tests these:
 - [ ] **Merge PR #4** after B's live Swing test. A (repo owner) reviews: all checks pass and only `ai/`, `tests/mywords/ai/`, B's docs and `config.example.txt` change.
 
 ### Everyone
+- [ ] Report, video and figures: follow `docs/REPORT_GUIDE.md` (your sections in its section 1, your figures in its section 5). Drafts go in `report/drafts/` by 3 Dec.
 - [ ] Each member explains their own code in the 5–7 minute video.
 - [ ] Lecturer questions (`docs/OPEN_QUESTIONS.md` Q01–Q05) must be answered and recorded.
 
