@@ -25,8 +25,8 @@ Show a clearly labeled live or mock response and exercise missing-key, offline, 
 ## How the Java flow works
 
 1. `AIConfig.load` reads the six settings from the local file in the working directory. Each setting has a place in a plain array. The code checks that the endpoint uses HTTPS and that the timeout and response limits are positive and bounded.
-2. `PromptBuilder.build` writes the selected context, language style, partner tone and keywords as quoted data. It adds up to three permitted saved phrases and two permitted feedback examples from that conversation. Casual wording can keep expressions like `tapau` and `yum cha`.
-3. `AIHelper.ask` sends the HTTPS POST with `HttpURLConnection` and returns the provider's JSON response. It uses the API key in the authorization header. The configured timeouts and byte limit bound the read, and messages for failed requests contain only safe summaries.
+2. `PromptBuilder.build` writes the selected context, language style, partner tone and keywords as quoted data. It adds up to three permitted saved phrases and two permitted feedback examples from that conversation. It asks for different phrasings of the same action, recipient and timing, and for local expressions like `tapau` and `yum cha` in casual wording.
+3. `AIHelper.ask` sends the HTTPS POST with `HttpURLConnection` and returns the provider's JSON response. It uses the API key in the authorization header and requests a low sampling temperature of `0.1` to reduce wording variability. The configured timeouts and byte limit bound the read, and messages for failed requests contain only safe summaries. [ILMU Chat Completions parameters](https://docs.ilmu.ai/docs/api/chat-completions#parameters)
 4. `AIResponseParser.extractContent` finds `choices[0].message.content`. The cursor is an integer that advances through the JSON one character at a time. That lets `parseCandidates` recognize a comma inside quotes as part of a sentence, decode escapes, and reject replies without three distinct, usable candidates.
 5. `AIHelper.generateSuggestions` checks consent before sending and asks `FileManager` to append each validated suggestion before returning it. If config, networking, parsing, or logging fails, `AppController` can show saved phrases.
 
@@ -50,14 +50,32 @@ javac --release 17 -encoding UTF-8 -d "$classes" $(find src tests -name '*.java'
 (cd "$classes" && java -cp . mywords.ai.RoleBAIChecks)
 ```
 
-The checks use a temporary working directory for fictional data and a stub provider reply. Log rows are written through the existing `FileManager` API one at a time. If a later write fails or Swing discards a stale response, the log can contain rows the user did not see. Role A can address partial writes with a batch append, coordinated with Roles B and D.
+The checks use a temporary working directory for fictional data and a stub provider reply. They verify that all four handbook language cases pass their keywords, context, style and partner tone into the prompt. Log rows are written through the existing `FileManager` API one at a time. If a later write fails or Swing discards a stale response, the log can contain rows the user did not see. Role A can address partial writes with a batch append, coordinated with Roles B and D.
 
 ## Check the API with fictional input
 
-From the repository root, run the compile commands above and then run:
+From the repository root, run the compile commands above and choose one of the commands below.
 
 ```sh
-java -cp "$classes" mywords.ai.RoleBAIChecks --live
+java -cp "$classes" mywords.ai.RoleBAIChecks --live friends-casual
+java -cp "$classes" mywords.ai.RoleBAIChecks --live friends-formal
+java -cp "$classes" mywords.ai.RoleBAIChecks --live family
+java -cp "$classes" mywords.ai.RoleBAIChecks --live healthcare
 ```
 
-This sends one fictional request to the local configuration's AI endpoint using the same Role B code as the app. It sends no saved memories and uses a temporary directory for the log. It checks and displays three replies before deleting the temporary log. Use this to verify the endpoint and model independently of Swing. For a full Swing live demo, use the consent flow once the controller and screen bind requests to the same conversation.
+`--live` on its own runs the Family case. Each command sends one fictional request to the configured provider using the same Role B code as the app. It sends no saved memories and uses a temporary directory for the log. It checks the reply format and logging, prints the suggestions, then deletes the temporary log.
+
+Review all three replies against [handbook section 7](TEAM_HANDBOOK.md#7-malaysian-slang-and-rojak-core-mvp-feature-restored). The casual Friends case should keep `tapau`. The formal Friends case should keep the takeaway request and `nasi lemak` in a formal register. The Family case should preserve `tomorrow`, `Ah Ma` and `yum cha`. The Healthcare case should ask to speak with a nurse now. In every case, look for new details the keywords did not supply. This review is a separate check from passing the parser.
+
+### Live wording review, 26 November 2026
+
+The final run used ILMU Mini v3.3 (`ilmu-mini-v3.3`) with one fictional request per case and no memories. All four runs returned three distinct, parsed and logged suggestions. Earlier runs also passed the format check but introduced extra people, meetings or unrelated requests. The team still needs to agree on the demo model.
+
+| Case | What the final replies did | Wording review |
+| --- | --- | --- |
+| Casual Friends | All three kept `tapau`, `nasi lemak` and `later`. One changed the request to the speaker getting the food. | Two of three preserved the request. |
+| Formal Friends | Two used English takeaway wording, and one kept `tapau`. All three changed the request into the speaker's plan. | None clearly preserved both the intended request and the selected register. |
+| Family | All three kept `tomorrow`, `Ah Ma` and `yum cha` without adding a separate plan. | Three of three fit the case. |
+| Healthcare | All three asked for immediate speech and added no symptoms or advice. They addressed the nurse directly, with one using the more forceful wording “I require”. | Preferred framing and tone still need review. |
+
+For a full Swing live demo, use the consent flow once the controller and screen bind requests to the same conversation.

@@ -11,7 +11,7 @@ import mywords.model.Phrase;
 import mywords.model.Suggestion;
 import mywords.storage.FileManager;
 
-/** Offline checks. Uses fictional text and a stubbed provider response. */
+/** Offline checks and opt-in live cases using fictional text. */
 public class RoleBAIChecks
 {
     private static final String CONTENT =
@@ -31,17 +31,23 @@ public class RoleBAIChecks
             MAX_RESPONSE_BYTES=65536
             DATA_DIRECTORY=data
             """;
+    private static final LanguageCase FAMILY_CASE = new LanguageCase("family", "FAMILY",
+            "tomorrow, Ah Ma, yum cha", "Casual rojak", "Warm tone");
+    private static final LanguageCase[] LANGUAGE_CASES = {
+        new LanguageCase("friends-casual", "FRIENDS", "later, tapau, nasi lemak, for me",
+                "Casual rojak", "Friendly"),
+        new LanguageCase("friends-formal", "FRIENDS", "later, tapau, nasi lemak, for me",
+                "Formal English", "Polite"),
+        FAMILY_CASE,
+        new LanguageCase("healthcare", "HEALTHCARE", "nurse, speak, now", "Formal English", "Polite")
+    };
     private static int assertions;
 
     public static void main(String[] args) throws Exception
     {
         if (args.length > 0)
         {
-            if (args.length != 1 || !"--live".equals(args[0]))
-            {
-                throw new IllegalArgumentException("Run without arguments for offline checks or use --live for one fictional request.");
-            }
-            checkLiveProvider();
+            checkLiveProvider(selectLiveCase(args));
             return;
         }
 
@@ -51,6 +57,7 @@ public class RoleBAIChecks
             checkConfig(config);
             checkParser();
             checkPrompt();
+            checkLanguagePrompts();
             checkGeneration();
             checkFallback();
             System.out.println("Role B AI checks passed: " + assertions);
@@ -61,16 +68,41 @@ public class RoleBAIChecks
         }
     }
 
-    private static void checkLiveProvider() throws Exception
+    private static LanguageCase selectLiveCase(String[] args)
     {
-        System.out.println("Live check: sends fictional keywords, context and style to the configured AI provider.");
+        if ("--live".equals(args[0]))
+        {
+            if (args.length == 1)
+            {
+                return FAMILY_CASE;
+            }
+            if (args.length == 2)
+            {
+                for (LanguageCase example : LANGUAGE_CASES)
+                {
+                    if (example.name().equals(args[1]))
+                    {
+                        return example;
+                    }
+                }
+            }
+        }
+        throw new IllegalArgumentException("Run without arguments for offline checks or use "
+                + "--live [friends-casual|friends-formal|family|healthcare].");
+    }
+
+    private static void checkLiveProvider(LanguageCase example) throws Exception
+    {
+        System.out.println("Live check sends fictional keywords, context, style and tone to the configured AI provider.");
+        System.out.println(example.name() + " | " + example.context() + " | " + example.style()
+                + " | " + example.tone() + " | " + example.keywords());
         System.out.println("The three replies are logged in a temporary directory and then printed.");
         Path folder = Files.createTempDirectory("mywords-role-b-live-");
         Path log = folder.resolve("ai_log.txt");
         try
         {
             AIHelper ai = new AIHelper(new FileManager(folder.toString()));
-            Suggestion[] results = ai.generateSuggestions(request(true, new Phrase[0], new Feedback[0]));
+            Suggestion[] results = ai.generateSuggestions(example.request(true, new Phrase[0], new Feedback[0]));
             check(results.length == 3 && Files.readString(log).split("\\R").length == 4,
                     "three suggestions logged before display");
             for (Suggestion suggestion : results)
@@ -79,6 +111,7 @@ public class RoleBAIChecks
                 System.out.println(suggestion.getText());
             }
             System.out.println("Live Role B check passed: three logged AI suggestions.");
+            System.out.println("Review each suggestion for meaning, register and details absent from the keywords.");
         }
         finally
         {
@@ -172,6 +205,21 @@ public class RoleBAIChecks
                 && !prompt.contains("WRONG_PERSON_CONTEXT"), "only the confirmed wording from a rejection is reused");
     }
 
+    private static void checkLanguagePrompts()
+    {
+        PromptBuilder builder = new PromptBuilder();
+        for (LanguageCase example : LANGUAGE_CASES)
+        {
+            String prompt = builder.build(example.request(true, new Phrase[0], new Feedback[0]));
+            check(prompt.contains("Current keywords: " + quoteFixture(example.keywords()) + "\n"),
+                    example.name() + " keeps the keywords as entered");
+            check(prompt.contains("Context: " + quoteFixture(example.context()) + "\n")
+                    && prompt.contains("Language style: " + quoteFixture(example.style()) + "\n")
+                    && prompt.contains("Partner tone: " + quoteFixture(example.tone()) + "\n"),
+                    example.name() + " sends the selected context, style and tone");
+        }
+    }
+
     private static void checkGeneration() throws Exception
     {
         Path folder = Files.createTempDirectory("mywords-role-b-log-");
@@ -219,8 +267,16 @@ public class RoleBAIChecks
 
     private static GenerationRequest request(boolean consent, Phrase[] phrases, Feedback[] feedback)
     {
-        return new GenerationRequest("REQ-test", "P-test", "CP-test", "FAMILY", "tomorrow, Ah Ma, yum cha",
-                "Casual rojak", "Warm tone", consent, phrases, feedback);
+        return FAMILY_CASE.request(consent, phrases, feedback);
+    }
+
+    private record LanguageCase(String name, String context, String keywords, String style, String tone)
+    {
+        GenerationRequest request(boolean consent, Phrase[] phrases, Feedback[] feedback)
+        {
+            return new GenerationRequest("REQ-test", "P-test", "CP-test", context, keywords,
+                    style, tone, consent, phrases, feedback);
+        }
     }
 
     private static String quoteFixture(String text)
