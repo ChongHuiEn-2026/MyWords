@@ -35,7 +35,7 @@ public class AIResponseParser
 
     public String[] parseCandidates(String content) throws AIServiceException
     {
-        Cursor array = new Cursor(content);
+        Cursor array = new Cursor(unwrapCodeFence(content));
         array.expect('[');
         String[] candidates = new String[3];
         for (int i = 0; i < candidates.length; i++)
@@ -62,6 +62,34 @@ public class AIResponseParser
         array.expect(']');
         array.requireEnd();
         return candidates;
+    }
+
+    private static String unwrapCodeFence(String content) throws AIServiceException
+    {
+        if (content == null)
+        {
+            throw badResponse();
+        }
+        String trimmed = content.strip();
+        if (!trimmed.startsWith("```"))
+        {
+            return content;
+        }
+
+        // Some providers wrap the whole JSON reply in one Markdown code block.
+        int firstLineEnd = trimmed.indexOf('\n');
+        int lastLineStart = trimmed.lastIndexOf('\n');
+        if (firstLineEnd < 0 || firstLineEnd == lastLineStart)
+        {
+            throw badResponse();
+        }
+        String opening = trimmed.substring(0, firstLineEnd).strip();
+        if (!("```".equals(opening) || "```json".equalsIgnoreCase(opening))
+                || !"```".equals(trimmed.substring(lastLineStart + 1)))
+        {
+            throw badResponse();
+        }
+        return trimmed.substring(firstLineEnd + 1, lastLineStart);
     }
 
     private static boolean isSingleLine(String text)

@@ -116,6 +116,16 @@ public class RoleBAIChecks
         check("Boleh tapau nasi lemak, please?".equals(candidates[0]), "keeps commas and rojak");
         check("Can you say \"yum cha\" to Ah Ma?".equals(candidates[1]), "decodes escaped quotes");
         check(candidates[2].contains("阿嬷"), "preserves Unicode");
+        String fenced = "  ```json\r\n" + CONTENT + "\r\n```\n";
+        String[] wrapped = parser.parseCandidates(fenced);
+        check(candidates[0].equals(wrapped[0]) && candidates[1].equals(wrapped[1])
+                && candidates[2].equals(wrapped[2]), "one JSON code fence preserves all three sentences");
+        check(parser.parseCandidates("```\n" + CONTENT + "\n```").length == 3, "bare code fence is accepted");
+        expectAI(() -> parser.parseCandidates(fenced + "extra prose"), "prose after the fence");
+        expectAI(() -> parser.parseCandidates("extra prose\n" + fenced), "prose before the fence");
+        expectAI(() -> parser.parseCandidates("```html\n" + CONTENT + "\n```"), "non-JSON code fence");
+        expectAI(() -> parser.parseCandidates("```json\n[\"a\",\"b\",\"c\",\"d\"]\n```"),
+                "four candidates inside a fence");
         String[] escaped = parser.parseCandidates("[ \"C:\\\\kopi\", \"Ah Ma\\u0021\", \"tab\\there\" ]");
         check("C:\\kopi".equals(escaped[0]), "decodes backslashes");
         check("Ah Ma!".equals(escaped[1]), "decodes Unicode escapes");
