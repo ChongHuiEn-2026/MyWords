@@ -13,6 +13,7 @@ Pack v0.1 prepared 24 November 2026. **Design proposed; no implementation inspec
 | D05 | Open | Fourth deliverable and Scanner-with-GUI discrepancy | S1/S2 conflict; Q01/Q02 |
 | D06 | User-confirmed | Keep the same MyWords app and assign: A group leader/system architect/core data manager; B AI integration; C clinical features/logic; D UI/report generator. Balance the programming workload across all four roles. | Current direct user request and attached role/task screenshots |
 | D07 | Proposed; needs D's review | A rejected candidate must never be reused as an example. If the communicator provides a correction after rejecting it, only that confirmed correction may be reused, and only with separate explicit AI-reuse consent. Rejection without a correction is not shared. | Role C code review on 25 November 2026; confirm with Role D before treating this as the team decision |
+| D08 | Proposed; team review pending | Use ILMU Chat Completions at `https://api.ilmu.ai/v1/chat/completions` with `ilmu-mini-v3.3` for the fictional demo. Keep real settings in the local `config.txt`. | [ILMU Quickstart](https://docs.ilmu.ai/docs/getting-started/quickstart), [ILMU Chat Completions](https://docs.ilmu.ai/docs/api/chat-completions). Confirm model access, credits and provider data handling before a live demo. |
 
 ## Accepting or changing a design
 
@@ -36,7 +37,8 @@ Use this only after inspecting actual work. Record failed checks as well as pass
 
 | Date MYT | Requirement/task | Actual code revision/files | Check performed | Observed result | Evidence artifact | Owner |
 | --- | --- | --- | --- | --- | --- | --- |
-| — | — | No code or checks supplied | — | Not verified | — | — |
+| 26 Nov 2026 | AI config, prompt, parser and fallback | `src/mywords/ai/` | Compiled for Java 17 and ran Role B and Role C checks | 48 Role B assertions and all seven Role C groups passed. During development, failing checks reproduced a parser cursor error and rejection of valid blank preferences before fixes. | [Role B checks](../tests/mywords/ai/RoleBAIChecks.java) | B |
+| 26 Nov 2026 | Swing and AI transport | `mywords.app.Main`, `AIHelper` | Exercised the Swing buttons with fictional data and a local HTTPS mock | Three unselected AI suggestions and three log rows on success. Saved phrases remained available with sharing off and after HTTP 401/429/503, a redirect, malformed JSON, oversized or invalid UTF-8 replies, timeout and connection failure. Live provider test pending. | [Role B handoff](ROLE_B.md) | B |
 
 ## Shared-contract change request template
 

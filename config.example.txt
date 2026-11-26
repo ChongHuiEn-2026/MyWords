@@ -1,6 +1,8 @@
 # MyWords AI configuration - read by Role B's AIConfig (see docs/TEAM_HANDBOOK.md section 5).
 # Copy to config.txt locally only. Never commit the real file or credentials.
-# B must confirm provider, schema and parser policy with the team first.
+# Choose the provider and model with the team before enabling online AI.
+# AI_ENDPOINT is the full HTTPS chat-completions URL, including /chat/completions.
+# See docs/ROLE_B.md for the proposed ILMU settings and demo instructions.
 # Parse non-comment lines at the first '='; trim key/value, reject duplicate keys.
 # Blank or REPLACE_ values disable online AI. No automatic network calls on startup.
 AI_API_KEY=REPLACE_WITH_LOCAL_KEY
@@ -9,6 +11,5 @@ AI_MODEL=REPLACE_WITH_APPROVED_MODEL
 CONNECT_TIMEOUT_MS=10000
 READ_TIMEOUT_MS=20000
 MAX_RESPONSE_BYTES=65536
-DATA_DIRECTORY=data
 # Credentials do not grant user consent. Online and memory consent live in profiles.
 # AI display log is data/ai_log.txt; keep all runtime data private and local.

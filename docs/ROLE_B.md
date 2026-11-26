@@ -21,3 +21,33 @@ Owns the complete AI boundary: safe configuration, request construction, HTTP co
 ## Acceptance evidence
 
 Show a clearly labeled live or mock response and exercise missing-key, offline, HTTP error and malformed-response handling. Explain the parser and demonstrate that the GUI remains usable through fallback. Record only checks actually performed.
+
+## How the Java flow works
+
+1. `AIConfig.load` reads the six settings from the local file in the working directory. Each setting has a place in a plain array. The code checks that the endpoint uses HTTPS and that the timeout and response limits are positive and bounded.
+2. `PromptBuilder.build` writes the selected context, language style, partner tone and keywords as quoted data. It adds up to three permitted saved phrases and two permitted feedback examples from that conversation. Casual wording can keep expressions like `tapau` and `yum cha`.
+3. `AIHelper.ask` sends the HTTPS POST with `HttpURLConnection` and returns the provider's JSON response. It uses the API key in the authorization header. The configured timeouts and byte limit bound the read, and messages for failed requests contain only safe summaries.
+4. `AIResponseParser.extractContent` finds `choices[0].message.content`. The cursor is an integer that advances through the JSON one character at a time. That lets `parseCandidates` recognize a comma inside quotes as part of a sentence, decode escapes, and reject replies without three distinct, usable candidates.
+5. `AIHelper.generateSuggestions` checks consent before sending and asks `FileManager` to append each validated suggestion before returning it. If config, networking, parsing, or logging fails, `AppController` can show saved phrases.
+
+## Evaluator setup
+
+Ask Roles A and D to bind the Swing request to a single session and its consent before enabling a live provider. Currently the worker reads mutable keywords and the controller reads the active conversation separately. Changing conversations at that moment can pair old input with a different profile's consent. The enable screen should explain provider transmission and local AI-output logging together before asking for consent.
+
+Once the team has approved the provider and is ready for a fictional live demo, copy `config.example.txt` to `config.txt` in the working directory used by Java. Set the full HTTPS chat-completions URL, model and key locally. The proposed ILMU settings are `https://api.ilmu.ai/v1/chat/completions` and `ilmu-mini-v3.3`. Confirm account access, credits and request-logging settings with the team. [ILMU Quickstart](https://docs.ilmu.ai/docs/getting-started/quickstart) · [ILMU Chat Completions](https://docs.ilmu.ai/docs/api/chat-completions)
+
+The default values in the template are 10,000 ms to connect, 20,000 ms to read and 65,536 response bytes. The application uses saved phrases while the local file is missing or contains placeholders. Only the communicator should enable AI sharing after reading what will be sent. Use fictional demo data. Keep `config.txt` and runtime `data/` local.
+
+For the saved-phrase demo, run `mywords.app.Main`, choose Mei and Ah Ma, press **Use this conversation**, type `kopi`, and press **Get suggestions**.
+
+## Run the Role B checks
+
+From the repository root on macOS or Linux with JDK 17 or later:
+
+```sh
+classes=$(mktemp -d)
+javac --release 17 -encoding UTF-8 -d "$classes" $(find src tests -name '*.java')
+(cd "$classes" && java -cp . mywords.ai.RoleBAIChecks)
+```
+
+The checks use a temporary working directory for fictional data and a stub provider reply. Log rows are written through the existing `FileManager` API one at a time. If a later write fails or Swing discards a stale response, the log can contain rows the user did not see. Role A can address partial writes with a batch append, coordinated with Roles B and D.
