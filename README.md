@@ -4,13 +4,13 @@ Version: 0.2 | Prepared: 25 November 2026 | Timezone: Asia/Kuala_Lumpur (MYT, UT
 
 > **👉 Start here: [docs/TEAM_HANDBOOK.md](docs/TEAM_HANDBOOK.md)**: what is built now, the real Java API, rules, each role's next tasks and how to run the app and checks. AI assistants: read [AGENTS.md](AGENTS.md) first. Report, video and submission: [docs/REPORT_GUIDE.md](docs/REPORT_GUIDE.md).
 >
-> **HTML integration branch (27 Nov 2026):** Role D’s HTML uses the Java backend and Role B’s AI implementation from PR #4. See the run steps below. The handbook also records the earlier Swing implementation.
+> **Submission GUI (27 Nov 2026):** MyWords uses Role D’s HTML interface with Java storage, communication logic and Role B’s AI integration. This change is tracked in [draft PR #4](https://github.com/ChongHuiEn/MyWords/pull/4).
 
 This pack describes **MyWords — Let Me Finish My Sentence**, a WIX1002 Fundamentals of Programming (FOP) Hackathon project at Universiti Malaya, Track 3: Healthcare. The app scope remains the same; the revised development roles in `ROLE_A.md`–`ROLE_D.md` redistribute its programming work. Role names are development assignments, distinct from the application's Communicator and Supporter users.
 
 ## Run the HTML GUI
 
-This integration branch uses Role D’s `MyWords.html` with the existing Java backend. From the repository root on macOS or Linux with a JDK 17 or newer:
+From the repository root on macOS or Linux with JDK 17 or newer:
 
 ```sh
 mkdir -p out
@@ -24,7 +24,7 @@ Choose **Family → Ah Ma → Eat or Drink → My Own Idea (Type Myself)**, ente
 
 For ILMU or another approved provider, copy `config.example.txt` to local `config.txt` and fill in the HTTPS Chat Completions endpoint, the model, and the key. Use fictional keywords. Read the **AI sharing** disclosure before switching it on. The browser sends its request to Java, and Java keeps the provider key and writes displayed replies to `data/ai_log.txt`.
 
-For the browser backend checks with a mock provider, compile `src` and `tests` together.
+The AI requests three plausible interpretations. If the reply is incomplete or repetitive, Java offers a retry and any matching saved phrases.
 
 The shipped `mywords.css` was built using Tailwind CSS 3.4.17 with Role D’s theme. To regenerate it after changing CSS utility classes, run this with the standalone Tailwind CLI:
 
@@ -40,7 +40,7 @@ find src tests -name '*.java' -print0 | xargs -0 javac --release 17 -encoding UT
 java -cp out mywords.web.BrowserChecks
 ```
 
-The sign-in screens use local Java accounts with hashed passwords. Create accounts again for this local build if you used the earlier standalone HTML. Existing browser storage may contain plaintext passwords, so the app does not import it. Speak uses an installed on-device voice if the browser has one. The text menu and Swing entry points still use the same core Java classes.
+The sign-in screens use local Java accounts with hashed passwords. Create accounts again for this local build if you used the earlier standalone HTML. Existing browser storage may contain plaintext passwords, so the app does not import it. Speak uses an installed on-device voice if the browser has one. Run `java -cp out mywords.app.ConsoleMain` for the Scanner text menu while its submission requirement is open. It uses the same core Java classes and text data.
 
 ## Balanced programming ownership
 
@@ -49,7 +49,7 @@ The sign-in screens use local Java accounts with hashed passwords. Create accoun
 | A | Startup/controller, user-role classes, core arrays and file persistence | Builds and integrates the app backbone and CRUD/storage logic |
 | B | AI configuration, prompt construction, HTTP gateway, response parser and AI exceptions | Implements and explains the external-service boundary and robust fallback errors |
 | C | Suggestion workflow, feedback decisions, scoped memory search and communication rules | Implements the app's core personalization and meaning-preservation logic |
-| D | Swing screens, input validation, confirmed-phrase report generation and text export | Implements the full user journey and user-controlled conversation export |
+| D | HTML screens, browser-to-Java integration and confirmed-phrase report export | Implements the full user journey and user-controlled conversation export |
 
 The work is balanced by implementation complexity and end-to-end ownership, not by counting Java files. Each member also contributes to integration, documentation and presenting their own code. Review this estimate together before coding and redistribute a module if the team's experience or time differs.
 
@@ -62,7 +62,7 @@ The work is balanced by implementation complexity and end-to-end ownership, not 
 5. Hold a short team review of [INTEGRATION.md](docs/INTEGRATION.md) and [OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) before separate implementation. These are proposed contracts, not previously agreed APIs. Confirm that programming effort feels comparable to each teammate.
 6. Record accepted changes in [DECISIONS.md](docs/DECISIONS.md), update the canonical files, and tell every teammate to refresh their AI context. Chat-only agreements cause drift.
 
-For a chat that accepts only one document, use the companion `MyWords_AI_Context_All_In_One.md`. It is a generated snapshot, not a second authority. Edit the individual files and regenerate it when the pack changes.
+Use the [team handbook](docs/TEAM_HANDBOOK.md) when sharing a single file with an AI assistant. The all-in-one context pack is a historical planning snapshot.
 
 ## Reading order and file map
 
@@ -90,7 +90,7 @@ For a chat that accepts only one document, use the companion `MyWords_AI_Context
 ## Start here today
 
 - [ ] Fill in member names, group number, OCC and lecturer.
-- [ ] Agree on minimum features, GUI tool, Java version and proposed contracts.
+- [ ] Review the HTML submission build and its Java integration.
 - [ ] Ask the lecturer about the fourth submission item and whether Scanner is separately required alongside the GUI.
 - [ ] Plan a working offline GUI milestone for 29 November; target development completion on 7 December.
 

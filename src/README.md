@@ -1,37 +1,19 @@
 # MyWords source code
 
-**Status and the real API: see [`docs/TEAM_HANDBOOK.md`](../docs/TEAM_HANDBOOK.md).** A, C and D have working v1 code; B (AI) is still a stub, so the app always falls back to saved phrases.
+Use JDK 17 or newer. Run the HTML GUI from the project root with
+`mywords.web.BrowserMain`. Follow the [README run instructions](../README.md#run-the-html-gui).
+`mywords.app.Main` starts the same browser server. The Scanner text menu runs
+with `mywords.app.ConsoleMain` and uses the same core Java backend.
 
-## Assumptions (team, please confirm or change)
-
-- Java 17+, Swing GUI, package root `mywords`
-- Plain `src/` folder (open in NetBeans as an existing-sources project)
-- Runtime data folder `data/` (already ignored by `.gitignore`)
-
-## Who owns which package
-
-| Package | Owner | Classes |
+| Package | Owner | Responsibility |
 | --- | --- | --- |
-| `mywords.app` | A | `Main` (GUI), `ConsoleMain` + `ConsoleMenu` (Scanner text menu), `AppController`, `DemoData` |
-| `mywords.model` | A (Feedback, Suggestion: C) | `User`, `Communicator`, `Supporter`, `CommunicationProfile`, `ConversationPartner`, `Phrase`, `Codes`, `Feedback`, `Suggestion` |
-| `mywords.storage` | A | `FileManager`, `RecordCodec` |
-| `mywords.exception` | A (AIServiceException: B) | `InvalidInputException`, `StorageFullException`, `AIServiceException` |
-| `mywords.ai` | B | `AIHelper`, `AIConfig`, `PromptBuilder`, `AIResponseParser`, `GenerationRequest` |
-| `mywords.logic` | C | `SuggestionService`, `FeedbackManager`, `MemoryManager`, `CommunicationRules` |
-| `mywords.ui` | D | `MainFrame`, `InputValidator`, `ReportGenerator` (+ new screen classes) |
+| `mywords.app` | A | Launchers, Scanner menu, controller, request snapshots and demo data |
+| `mywords.model` | A (Feedback and Suggestion: C) | Domain records and the user hierarchy |
+| `mywords.storage` | A | FileManager and RecordCodec |
+| `mywords.exception` | A (AIServiceException: B) | Custom input, capacity and AI exceptions |
+| `mywords.ai` | B | AI configuration, prompts, HTTP, response parsing and request data |
+| `mywords.logic` | C | Suggestions, feedback, memory and communication rules |
+| `mywords.web` | D / integration | Local HTTP server, browser actions, form parsing and browser records |
+| `mywords.ui` | D | ReportGenerator, shared by the browser and the Scanner menu |
 
-Search for `TODO Role X` to find your work. Edit only your own package. If you need to change another owner's method signature, agree it with them and update `docs/TEAM_HANDBOOK.md` section 4 in the same commit.
-
-## Run
-
-**NetBeans:** File → New Project → Java with Ant → *Java Project with Existing Sources* → add this `src` folder → main class `mywords.app.Main`.
-
-**Command line** (from the repo root):
-
-```
-javac -encoding UTF-8 -d out $(find src -name "*.java")
-java -cp out mywords.app.Main          # Swing GUI
-java -cp out mywords.app.ConsoleMain   # Scanner text menu (same data)
-```
-
-On first run it creates fictional demo data in `data/` (delete that folder to reset). Try: Mei + Ah Ma, keyword `kopi`, Get suggestions.
+See the [team handbook](../docs/TEAM_HANDBOOK.md) for the current Java API.

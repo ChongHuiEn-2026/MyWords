@@ -45,10 +45,14 @@ digraph MyWords {
     CommunicationRules [label="{CommunicationRules|+ isValidKeywords(...) : boolean\l+ mayShareFeedback(...) : boolean\l}", fillcolor="#F0F6E6"];
   }
 
+  subgraph cluster_web { label="web (HTML integration)"; style=rounded; color="#777777"; fontcolor="#333333";
+    BrowserMain [label="{BrowserMain|+ main(args)\l+ close()\l}", fillcolor="#F4F4F4"];
+    BrowserApp [label="{BrowserApp|- controller : AppController\l|~ run(action, form, token) : Reply\l- suggestions(...)\l- decision(...)\l}", fillcolor="#F4F4F4"];
+    BrowserForm [label="{BrowserForm|~ text(name, limit, required) : String\l~ checked(name) : boolean\l}", fillcolor="#F4F4F4"];
+    BrowserRecords [label="{BrowserRecords|- files : FileManager\l|~ put(...)\l}", fillcolor="#F4F4F4"];
+  }
+
   subgraph cluster_ui { label="ui (D)"; style=rounded; color="#777777"; fontcolor="#333333";
-    JFrame [label="{«Swing»\nJFrame}", fillcolor="#EEEEEE"];
-    MainFrame [label="{MainFrame|- controller : AppController\l|- requestSuggestions()  (SwingWorker)\l- saveDecision(...)\l}", fillcolor="#F4F4F4"];
-    InputValidator [label="{InputValidator|+ validateKeywords(raw) : String\l}", fillcolor="#F4F4F4"];
     ReportGenerator [label="{ReportGenerator|+ buildReport(phrases) : String\l+ writeReport(text, path)\l}", fillcolor="#F4F4F4"];
   }
 
@@ -62,21 +66,22 @@ digraph MyWords {
   // inheritance (hollow triangle)
   edge [dir=back, arrowtail=empty, arrowhead=none, style=solid, color="#000000"];
   User -> Communicator; User -> Supporter;
-  JFrame -> MainFrame;
   Exception -> InvalidInputException; Exception -> StorageFullException; Exception -> AIServiceException;
   edge [dir=forward, arrowtail=none];
 
   // uses / association (open arrow, dashed)
   edge [arrowhead=vee, style=dashed, color="#555555"];
-  MainFrame -> AppController [label="calls"];
+  BrowserMain -> BrowserApp; BrowserMain -> BrowserForm;
+  BrowserApp -> AppController [label="calls"]; BrowserApp -> BrowserRecords;
   ConsoleMenu -> AppController [label="calls"];
-  ConsoleMain -> ConsoleMenu; Main -> MainFrame; Main -> AppController [label="creates"]; ConsoleMain -> Main [label="createController()"];
-  Main -> DemoData;
+  ConsoleMain -> ConsoleMenu; Main -> BrowserMain [label="starts"]; Main -> AppController [label="creates"]; ConsoleMain -> Main [label="createController()"];
+  Main -> DemoData; BrowserMain -> DemoData;
   AppController -> FileManager; AppController -> AIHelper; AppController -> MemoryManager; AppController -> SuggestionService;
   AppController -> RequestSnapshot [label="creates"];
   AIHelper -> PromptBuilder; AIHelper -> AIResponseParser; AIHelper -> AIConfig; AIHelper -> GenerationRequest;
   AIHelper -> FileManager [label="appendAILogBatch"];
-  MainFrame -> FeedbackManager; MainFrame -> InputValidator; MainFrame -> ReportGenerator;
+  BrowserApp -> FeedbackManager; BrowserApp -> ReportGenerator;
+  BrowserRecords -> FileManager;
   FeedbackManager -> CommunicationRules; MemoryManager -> CommunicationRules;
   FileManager -> RecordCodec;
   edge [style=solid, color="#3366AA", dir=back, arrowtail=odiamond, arrowhead=none];
@@ -88,9 +93,9 @@ digraph MyWords {
 
   // ---- layout only (invisible) ----
   edge [style=invis, arrowhead=none, dir=none];
-  { rank=same; JFrame; ConsoleMain; }
-  { rank=same; MainFrame; ConsoleMenu; }
-  { rank=same; AppController; DemoData; InputValidator; ReportGenerator; }
+  { rank=same; Main; ConsoleMain; }
+  { rank=same; BrowserApp; ConsoleMenu; }
+  { rank=same; AppController; DemoData; BrowserForm; BrowserRecords; ReportGenerator; }
   { rank=same; AIHelper; SuggestionService; MemoryManager; FeedbackManager; RequestSnapshot; }
   { rank=same; PromptBuilder; AIResponseParser; AIConfig; GenerationRequest; CommunicationRules; }
   { rank=same; FileManager; Exception; }

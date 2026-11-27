@@ -1,6 +1,6 @@
-# MyWords Team Handbook (v0.2, as built)
+# MyWords Team Handbook (v0.3, HTML submission draft)
 
-Last updated: **26 November 2026, afternoon (MYT)** by Role A, after reviewing `main` and Role B's PR #4.
+Last updated: **27 November 2026 (MYT)** for draft PR #4.
 
 **This is the single source of truth for the code that exists now.** For the report, video and ZIP, use [`REPORT_GUIDE.md`](REPORT_GUIDE.md). Give this file to your AI assistant together with `AGENTS.md` and your `docs/ROLE_X.md`. When this handbook and an older doc disagree, this handbook wins. `docs/INTEGRATION.md` v0.1 was the *proposal*. Section 4 below lists the *actual* signatures in `src/`.
 
@@ -14,7 +14,7 @@ Last updated: **26 November 2026, afternoon (MYT)** by Role A, after reviewing `
 
 > I am Role X in the MyWords FOP project. Read AGENTS.md and docs/TEAM_HANDBOOK.md first. Section 4 is the real API. Do not rename, remove or change the parameters of any public method listed there. Only edit files in my package (section 3). If I need something from another role's class, tell me what to ask them instead of editing their file. Use plain arrays plus int counters (no ArrayList/HashMap/List/Map/Set/streams), no JSON libraries, and Java 17. Explain the code line by line for a beginner. Before finishing, make sure the whole project compiles.
 
-4. Before you push, **run the app** (`mywords.app.Main`) and click through your feature. If it does not open, do not push.
+4. Before you push, **[run the HTML app](../README.md#run-the-html-gui)** and click through your feature. If it does not open, do not push.
 
 ---
 
@@ -26,14 +26,14 @@ Last updated: **26 November 2026, afternoon (MYT)** by Role A, after reviewing `
 | `FileManager`: arrays and counters, CRUD, `.txt` save/load, AI log, `nextId` | A | Done, 39 automated checks passed |
 | `RecordCodec` (escape `\|`, newline, `\`; strict parsing) | A | Done |
 | `DemoData` (fictional Mei / Ah Ma / Dr Lim on first run) | A | Done |
-| `AppController` (session, consent check, stale-result check, AI→fallback) | A | Done; SwingWorker lives in D's screen |
+| `AppController` (session, consent check, stale-result check, AI→fallback) | A | Used by the HTML and Scanner flows |
 | `SuggestionService.savedPhraseFallback`, `MemoryManager`, `CommunicationRules`, `FeedbackManager` | C | Done (v1) |
-| `MainFrame` screen, `InputValidator`, `ReportGenerator` | D | Done (v1) |
-| `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser` | B (xxianen) | **In draft PR #4** (not on `main` yet): 62 checks pass with a mock API; standalone live runs with ILMU Mini v3.3 passed the 4 language cases in section 7. Next: merge `main` into the PR, live **Swing** test, then A merges the PR. Until then, `main` uses saved phrases only |
-| Automated checks (`tests/`) | B, C (+ A's checks kept by A) | `mywords.ai.RoleBAIChecks` (62), `mywords.logic.RoleCLogicChecks` (7). How to run: section 9b |
+| HTML screens, `BrowserApp` and `ReportGenerator` | D / integration | HTML is the selected GUI in draft PR #4 |
+| `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser` | B (xxianen) | **In draft PR #4**: prompts for three plausible interpretations, validates and logs the batch, and falls back to saved phrases. Live wording review of this response format is pending |
+| Automated checks (`tests/`) | B, C (+ A's checks kept by A) | `mywords.ai.RoleBAIChecks`, `mywords.logic.RoleCLogicChecks` and `mywords.web.BrowserChecks`. How to run: section 9b |
 | Request snapshot (consent race fix, 26 Nov) | A + D | Done: keywords, profile, partner and consent are captured at the click and re-checked before sending (section 6) |
 
-What you can demo today: choose Mei + Ah Ma → type `kopi` → **Get suggestions** shows `[Saved phrase] Tomorrow kopi with Ah Ma lah.` → approve or edit it → restart → it is still there.
+For a fictional offline demo, open the HTML GUI, choose **Quick Demo Login**, then **Family → Ah Ma → Eat or Drink → My Own Idea (Type Myself)**. Enter `kopi` and look for a **Saved phrase** suggestion.
 
 ---
 
@@ -55,20 +55,22 @@ What you can demo today: choose Mei + Ah Ma → type `kopi` → **Get suggestion
 
 ```
 src/mywords/
-  app/        A  Main, AppController, DemoData
+  app/        A  Main, ConsoleMain, ConsoleMenu, AppController, RequestSnapshot, DemoData
   model/      A  User, Communicator, Supporter, CommunicationProfile, ConversationPartner, Phrase, Codes
               C  Feedback, Suggestion (shared models; ask A and C before changing fields)
   storage/    A  FileManager, RecordCodec
   exception/  A  InvalidInputException, StorageFullException   B  AIServiceException
   ai/         B  AIHelper, AIConfig, PromptBuilder, AIResponseParser, GenerationRequest
   logic/      C  SuggestionService, MemoryManager, CommunicationRules, FeedbackManager
-  ui/         D  MainFrame, InputValidator, ReportGenerator (+ new screens)
+  web/           BrowserMain, BrowserApp, BrowserForm, BrowserRecords
+  ui/         D  ReportGenerator
+MyWords.html, browser.js, mywords.css  D's browser GUI
 data/         runtime .txt files (git-ignored, created automatically)
 docs/         shared docs; this handbook is the current contract
 latest_roles/ ARCHIVE copy of older role docs. Do not give it to your AI.
 ```
 
-Run the GUI with main class **`mywords.app.Main`**. Run the **Scanner text menu** with **`mywords.app.ConsoleMain`**. Both use the same backend and the same `data/` files (see section 6b). In VS Code, open the `MyWords` folder and press Run above `main`. In NetBeans, use *Java Project with Existing Sources* and add `src`.
+Run the GUI with **`mywords.web.BrowserMain`** from the repository root and open the address printed in the terminal. See the [README](../README.md#run-the-html-gui). Run the Scanner menu with **`mywords.app.ConsoleMain`**.
 
 ---
 
@@ -83,7 +85,7 @@ boolean isCurrentSession(int version, String profileId, String partnerId) // che
 boolean canActiveUserChangeConsent()                      // Communicator of this profile only
 boolean canActiveUserEditProfile()                        // polymorphism: User.canEditProfile() + same profile
 RequestSnapshot captureRequest(String keywords) throws InvalidInputException   // call ON THE UI THREAD at the moment of the click
-Suggestion[] requestSuggestions(RequestSnapshot snapshot) throws InvalidInputException, IOException, StorageFullException // safe in a SwingWorker
+Suggestion[] requestSuggestions(RequestSnapshot snapshot) throws InvalidInputException, IOException, StorageFullException
 boolean isCurrentSession(RequestSnapshot snapshot)       // use in done() to discard stale results
 Suggestion[] requestSuggestions(String keywords)          // convenience = capture + request at once; ONLY for single-threaded code (console menu, tests)
 String getLastFallbackMessage()                           // prefer snapshot.getResultMessage() (per request)
@@ -146,9 +148,8 @@ Feedback FeedbackManager.createDecision(... , boolean freshConfirmation, boolean
 static boolean CommunicationRules.hasText / isValidKeywords / isValidSentence / isKnownContext / isKnownReason / maySharePhrase / mayShareFeedback
 ```
 
-### D: screen helpers
+### D: report helper
 ```java
-String InputValidator.validateKeywords(String raw) / validateSentence(String raw) throws InvalidInputException
 String ReportGenerator.buildReport(Phrase[] selected);  void writeReport(String text, String path) throws IOException
 ```
 
@@ -170,7 +171,7 @@ new Suggestion(suggestionId, requestId, text, sourceCode)   // sourceCode = Code
 
 | Item | Allowed values |
 | --- | --- |
-| Context | `FAMILY`, `FRIENDS`, `HEALTHCARE` |
+| Context | `FAMILY`, `FRIENDS`, `HEALTHCARE`, `OTHERS` |
 | Decision (stored) | `APPROVE`, `EDIT`, `REJECT`. `NONE_OF_THESE` exists in C's FeedbackManager but is **not stored**; the screen just clears the selection |
 | Reason | `NONE` (approve only), `WRONG_MEANING`, `WRONG_TONE`, `WRONG_PERSON_CONTEXT`, `OTHER_UNSURE` |
 | EDIT rule | Must have a non-empty confirmed (edited) text |
@@ -186,7 +187,7 @@ phrases.txt   #MyWords|1|PHRASES   phraseId|profileId|partnerId|contextCode|keyw
 feedback.txt  #MyWords|1|FEEDBACK  feedbackId|profileId|partnerId|contextCode|keywords|candidateText|decisionCode|reasonCode|confirmedText|allowAIReuse|createdAt
 ai_log.txt    #MyWords|1|AI_LOG    createdAt|requestId|profileId|partnerId|contextCode|displayedReply   (5 MB cap)
 ```
-To reset demo data: close the app, delete the `data` folder, then run again.
+The browser also stores account preferences and other browser records in [`browser.txt`](INTEGRATION.md#html-gui-for-submission). For a clean demo, run the app from a fresh project checkout.
 
 **`config.txt`** (B; copy from `config.example.txt` and never commit it). These keys are the contract. B's `AIConfig` must read exactly these:
 `AI_API_KEY`, `AI_ENDPOINT`, `AI_MODEL`, `CONNECT_TIMEOUT_MS` (10000), `READ_TIMEOUT_MS` (20000), `MAX_RESPONSE_BYTES` (65536). A blank value or one starting with `REPLACE_` means "AI off" and must throw `AIServiceException`.
@@ -195,19 +196,17 @@ To reset demo data: close the app, delete the `data` folder, then run again.
 
 ## 6. The main flows (who does what)
 
-**Get suggestions** (D → A → C/B). *Consent rule: data is only sent for the conversation, keywords and permission that existed when the user clicked.*
-1. D validates keywords, then **on the UI thread** calls `ticket = controller.captureRequest(keywords)`. This captures keywords, profile, partner, AI consent and session version together.
-2. D runs `controller.requestSuggestions(ticket)` inside a `SwingWorker`. The controller uses **only** the ticket. Right before calling B it re-checks: same session, and consent was ON at the click **and** is still ON. Otherwise nothing is sent.
-3. In `done()`, D calls `controller.isCurrentSession(ticket)`. If false, it discards the result. Otherwise it sets `lastKeywords = ticket.getKeywords()`.
-4. D shows each `Suggestion` labelled `[AI suggestion]` or `[Saved phrase]` with nothing pre-selected, and shows `ticket.getResultMessage()` in the status bar.
-5. All public `FileManager` methods are `synchronized`, so the background request never reads arrays that the UI is changing at that moment.
+**Get suggestions** (D → A → C/B).
+1. The HTML sends the selected partner and keywords to `BrowserApp` via a local POST. Java resolves the signed-in communicator, validates the input and selects the conversation.
+2. `BrowserApp` calls `controller.captureRequest(keywords)` then `controller.requestSuggestions(ticket)`. Java checks the snapshot and the current consent before contacting the provider.
+3. The browser checks the current conversation when the response returns. It displays eligible cards labeled **AI suggestion** or **Saved phrase** and leaves the choice to the communicator.
 
 **B's `generateSuggestions`** (the contract D and A rely on):
 build prompt → `ask` → `extractContent` → `parseCandidates` (three objects with different recognized intent codes and distinct wording) → **one** `fileManager.appendAILogBatch(..., texts)` call **before** returning → return three `Suggestion`s with source `"AI"`. A short, repeated or malformed reply or failed log write throws `AIServiceException` so the controller can use fallback.
 
-**Approve / Edit / Reject** (D → C → A): the screen only works on the session confirmed with "Use this conversation". C's `createFeedback` builds and validates the record, then A's `recordDecision(feedback, phraseOrNull)` stores both together. Saving the phrase, saving the feedback and allowing AI reuse are each asked separately.
+**Approve / Edit / Reject** (D → C → A): `BrowserApp` checks the request ID associated with the current browser session. C's `createFeedback` builds and validates the record, then A's `recordDecision(feedback, phraseOrNull)` stores both together. Saving the phrase, saving the feedback and allowing AI reuse are each asked separately.
 
-**Approving a `[Saved phrase]` without changing the text** must **not** save it again (that would create a duplicate). The console menu already skips the "save phrase" question in this case. **D: please do the same in `saveDecision`** (skip the phrase consent when `candidate` is SAVED and the confirmed text equals `candidate.getText()`).
+Approving a saved phrase with the same wording skips the duplicate save in `BrowserApp.decision`.
 
 **Manual message**: saved as a `Phrase` only (no Feedback, because there is no candidate), using the keywords typed in the Keywords box so it can be found again.
 
@@ -216,7 +215,7 @@ build prompt → `ask` → `extractContent` → `parseCandidates` (three objects
 ## 6b. Scanner text menu (requirement O04, lecturer question Q02)
 
 The original announcement asks for "a text menu that reads input with Scanner". The lecturer PDF makes a GUI compulsory. Whether both are needed is still **open** (Q02). Until the lecturer answers, we provide **both**:
-- `mywords.app.Main`: Swing GUI (main interface).
+- `mywords.web.BrowserMain`: HTML GUI for submission. `mywords.app.Main` also starts the browser server.
 - `mywords.app.ConsoleMain` → `ConsoleMenu` (Role A): a Scanner menu covering choose conversation, create profile, get suggestions (approve/edit/reject), write own message, view/delete phrases, export report, add partner, change style/tone, AI sharing on/off and add supporter.
 - Both call the **same** `AppController` / `FileManager` / `FeedbackManager` / `ReportGenerator`, so **no business logic is duplicated** and they read and write the same `data/` files. If you change a public method, the console menu must still compile.
 - In VS Code: open `src/mywords/app/ConsoleMain.java` and press Run; the menu appears in the Terminal.
@@ -258,8 +257,7 @@ Shared fictional test cases. Every role tests these:
 - [x] In `generateSuggestions`, write all three validated replies with one `appendAILogBatch` call before building the `Suggestion` array. Update [the Role B handoff](ROLE_B.md).
 - [x] Compile for Java 17 and run the integrated checks. All 69 Role B assertions and seven Role C groups passed. A stale click produced zero mock calls, a near-full log gained no partial rows, and Swing showed mock AI suggestions and saved-phrase fallback. The four standalone live ILMU checks verified reply format and logging. See [the evidence ledger](DECISIONS.md) and [the wording review](ROLE_B.md#live-wording-review-26-november-2026).
 - [x] Push the verified AI integration commits to draft PR #4.
-- [ ] After Role D updates the Swing enable dialog, bring in that change and test the full Swing flow with fictional Mei/Ah Ma data and AI sharing on. Confirm the demo model with the team and record the live result in `DECISIONS.md`.
-- [ ] Mark PR #4 ready for Role A's review after the live Swing check.
+- [ ] Review live AI wording in the HTML flow with fictional examples and AI sharing enabled. Confirm the demo model with the team and record the results in `DECISIONS.md`.
 - [ ] Push the Role B report draft by 3 Dec. Capture figures 04, 14 and 16 for the 5 Dec AI milestone, and prepare the AI walkthrough and missing-key fallback for the video. See [the report guide](REPORT_GUIDE.md).
 
 ### Role C: communication logic
@@ -270,17 +268,15 @@ Shared fictional test cases. Every role tests these:
 - [ ] Prepare the comparison scenarios (generic vs memory) together with D for the report.
 
 ### Role D: screens and report
-- [ ] **Consent text** in `toggleProfileAISharing` (requested by B). When turning AI sharing ON, explain both points together: (1) keywords, the profile style, the partner's tone and context, and up to 3 phrases + 2 feedback records allowed for AI reuse are **sent to the external AI service**; (2) the AI replies shown are **saved in a local log** (`data/ai_log.txt`). The console menu already shows this text, so copy it from `ConsoleMenu.toggleAISharing`.
+- [ ] Review the browser’s **AI sharing** disclosure for provider transmission and local logging in each supported language.
 - [ ] Review C's proposal **D07** (a rejected AI sentence is never reused; only an explicitly confirmed correction may be, with separate consent) and reply.
-- [ ] **Profile settings screen**: edit `languageStyle` / `preferredTone` via `controller.updateProfileSettings(controller.getActiveUser(), ...)`. Show the error message when an unauthorised Supporter is refused. This is our visible polymorphism demo.
-- [ ] **Add profile / partner / supporter screens** using `createProfile`, `createPartner`, `addSupporter`, `setSupporterAuthorization` (ready now). Reload the dropdowns after creating.
-- [ ] Show who the active user is. Keep the rule that only the Communicator can change AI sharing (already enforced).
+- [ ] Walk through browser account, profile settings and contact management. Browser accounts are Communicator accounts. Use the Scanner menu for Supporter authorization and the polymorphism demonstration.
 - [ ] Run the section 7 test cases and the bad-input cases; take screenshots for the report.
 - [ ] Keep using `controller` methods for the session. Do not add file reading or writing in the UI.
 
 ### Team decisions still open
 - [ ] **Demo AI model**: B tested ILMU Mini v3.3 (`ilmu-mini-v3.3`). Agree on it (or another) and record it in `DECISIONS.md`.
-- [ ] **Merge PR #4** after B's live Swing test. A (repo owner) reviews: all checks pass and only `ai/`, `tests/mywords/ai/`, B's docs and `config.example.txt` change.
+- [ ] **Review draft PR #4** with Roles A and D. Verify the HTML run instructions, shared backend and submission evidence, then record the review outcome.
 
 ### Everyone
 - [ ] Report, video and figures: follow `docs/REPORT_GUIDE.md` (your sections in its section 1, your figures in its section 5). Drafts go in `report/drafts/` by 3 Dec.
@@ -311,10 +307,9 @@ git push
 From the repo root in **Git Bash / MSYS2** (not PowerShell):
 ```
 javac --release 17 -encoding UTF-8 -d out $(find src tests -name "*.java")
-cd out
-java -cp . mywords.logic.RoleCLogicChecks
-java -cp . mywords.ai.RoleBAIChecks      # only after PR #4 is merged
-cd ..
+java -cp out mywords.logic.RoleCLogicChecks
+java -cp out mywords.ai.RoleBAIChecks
+java -cp out mywords.web.BrowserChecks
 ```
 - Everything must **compile**, including other roles' tests. If your change breaks someone's test, fix it with them before pushing.
 - `out/` is git-ignored. The checks use fictional data and a mock AI. They never need `config.txt` or a real key (`RoleBAIChecks --live ...` is optional and sends fictional text to the real provider).

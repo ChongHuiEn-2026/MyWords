@@ -32,13 +32,13 @@ Show a clearly labeled live or mock response and exercise missing-key, offline, 
 
 ## Evaluator setup
 
-Swing captures the keywords, profile, partner and AI-sharing setting together when **Get suggestions** is clicked. The controller checks the captured conversation and consent again before calling the AI helper. The remaining Swing task is for Role D to explain provider transmission and local suggestion logging together in the enable dialog. The console already shows both disclosures.
+In the browser, **Get suggestions** sends the chosen partner and keywords to Java. The controller snapshots the conversation and checks consent before calling the AI helper. The **AI sharing** control explains provider transmission and local suggestion logging.
 
 Copy `config.example.txt` to `config.txt` in the working directory used by Java. Set the full HTTPS Chat Completions URL, model ID and key locally. The service must accept a Bearer API key and a JSON POST with `model` and `messages`, then return one choice with the generated text in `choices[0].message.content`.
 
 The default values in the template are 10,000 ms to connect, 20,000 ms to read and 65,536 response bytes. The application uses saved phrases while the local file is missing or contains placeholders. Only the communicator should enable AI sharing after reading what will be sent. Use fictional demo data. Keep `config.txt` and runtime `data/` local.
 
-For the saved-phrase demo, run `mywords.app.Main`, choose Mei and Ah Ma, press **Use this conversation**, type `kopi`, and press **Get suggestions**.
+For the saved-phrase demo, [run the HTML GUI](../README.md#run-the-html-gui), choose **Quick Demo Login**, select **Family → Ah Ma → Eat or Drink → My Own Idea (Type Myself)**, and ask for suggestions with `kopi`.
 
 ## Run the Role B checks
 
@@ -50,7 +50,7 @@ javac --release 17 -encoding UTF-8 -d "$classes" $(find src tests -name '*.java'
 (cd "$classes" && java -cp . mywords.ai.RoleBAIChecks)
 ```
 
-The checks use fictional data and a stub provider reply. They verify that all four handbook language cases pass their keywords, context, style and partner tone into the prompt. They also cover a stale click, a change to consent before dispatch, and a log with room for only one of the three suggestions. A request blocked by a conversation switch before dispatch generates no mock-provider call or log. If the user changes conversations while the AI is already answering, Swing may discard the result after the validated suggestions have been logged locally.
+The checks use fictional data and a stub provider reply. They verify that all four handbook language cases pass their keywords, context, style and partner tone into the prompt. They also cover a stale click, a change to consent before dispatch, and a log with room for only one of the three suggestions. A request blocked by a conversation switch before dispatch generates no mock-provider call or log. The browser can discard a late result after Java has logged the validated batch locally.
 
 ## Check the API with fictional input
 
@@ -81,4 +81,4 @@ The final run used ILMU Mini v3.3 (`ilmu-mini-v3.3`) with one fictional request 
 | Family | All three kept `tomorrow`, `Ah Ma` and `yum cha` without adding a separate plan. | Three of three fit the case. |
 | Healthcare | All three asked for immediate speech and added no symptoms or advice. They addressed the nurse directly, with one using the more forceful wording “I require”. | Preferred framing and tone still need review. |
 
-The integrated Swing flow has passed with a local HTTPS mock and offline saved phrases. The live Swing test with fictional data is pending Role D's enable-dialog update.
+The browser mock checks exercise three labeled options, rejection of short or repeated replies, and saved-phrase fallback. A live browser wording review with the selected demo model is pending.

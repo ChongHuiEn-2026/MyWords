@@ -4,7 +4,7 @@ Version 0.2 | 25 November 2026 | Asia/Kuala_Lumpur (MYT, UTC+8)
 
 **Planning only. No application code, working features, tests or measured results have been supplied or verified. Role allocations are updated for the same MyWords app; the programming modules are proposed as comparable in effort.**
 
-Use this standalone file when an AI chat accepts one attachment. The modular files are canonical; this snapshot is regenerated from them. The lecturer PDF is included separately in the ZIP.
+Historical planning snapshot. Use the [team handbook](docs/TEAM_HANDBOOK.md) for the current HTML and Java build.
 
 ---
 

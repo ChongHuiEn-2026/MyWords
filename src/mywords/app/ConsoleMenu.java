@@ -22,7 +22,7 @@ import mywords.ui.ReportGenerator;
 public class ConsoleMenu
 {
     // Owner: Role A. Scanner 文字菜单: 只负责"问问题 + 显示结果",所有规则都交给 AppController / FileManager / FeedbackManager
-    // 和 Swing 画面用同一套后端,所以两边存的资料完全一样
+    // The Scanner menu and HTML GUI use the same core Java backend.
     private final AppController controller;
     private final FileManager fileManager;
     private final Scanner input;

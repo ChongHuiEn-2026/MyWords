@@ -4,12 +4,12 @@ Owns the application backbone and shared data contract, coordinates integration 
 
 ## Main programming ownership
 
-- `Main.java`: load the agreed data files, create shared services once, launch the Swing application and handle clean shutdown.
+- `Main.java`: launch the HTML server and provide the shared controller factory used by the Scanner menu.
 - `AppController.java`: coordinate navigation and calls between UI, storage, communication logic and AI; validate the active profile/context; catch expected application errors without swallowing them.
 - `User.java`, `Communicator.java`, `Supporter.java`: implement the real inheritance hierarchy and overridden role behavior used through a `User` reference in the application.
 - `FileManager.java`: own agreed object arrays and separate counters, ID allocation, add/find/update/delete loops, UTF-8 `.txt` persistence, reload, and safe file error handling. Coordinate schemas and method signatures before implementation.
 
-This is a substantial backend module. To keep work balanced, Role A does not own the Swing screens, AI transport/JSON parser, or personalization algorithms.
+This is a substantial backend module. To keep work balanced, Role A does not own the HTML screens, AI transport/JSON parser, or personalization algorithms.
 
 ## Integration and coordination
 

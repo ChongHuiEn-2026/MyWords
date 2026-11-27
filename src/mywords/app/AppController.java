@@ -216,12 +216,12 @@ public class AppController
     }
     public synchronized RequestSnapshot captureRequest(String keywords) throws InvalidInputException
     {
-        // 在按下按钮的那一刻 (Swing 的 thread) 调用: 把关键词、session、AI 同意 一起拍成快照
+        // Capture the keywords, conversation and AI consent together.
         if (activeUser == null || activeProfileId == null || activePartnerId == null) //没选 session
         {
             throw new InvalidInputException("Please choose a profile and conversation partner first.");
         }
-        if (keywords == null || keywords.trim().isEmpty()) //关键词不能空 (Role D 的 InputValidator 也会先检查)
+        if (keywords == null || keywords.trim().isEmpty())
         {
             throw new InvalidInputException("Please enter at least one keyword.");
         }
@@ -251,12 +251,12 @@ public class AppController
     public Suggestion[] requestSuggestions(String keywords) throws InvalidInputException, IOException, StorageFullException
     {
         // 便利版: 立刻拍快照再送出。只适合"同一个 thread 里马上做完"的情况 (文字菜单、测试)
-        // Swing 画面要在按下按钮时先 captureRequest(),再把快照交给 SwingWorker
+        // Call captureRequest first if processing will happen later.
         return requestSuggestions(captureRequest(keywords));
     }
     public Suggestion[] requestSuggestions(RequestSnapshot snapshot) throws InvalidInputException, IOException, StorageFullException
     {
-        // 可以在背景 thread (SwingWorker) 调用;只用快照里的资料,不读"现在"的 session
+        // Use the captured request and recheck the current session before sending.
         if (snapshot == null)
         {
             throw new InvalidInputException("Missing request.");

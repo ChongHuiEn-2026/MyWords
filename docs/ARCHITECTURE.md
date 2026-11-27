@@ -1,27 +1,28 @@
-# Proposed architecture
+# MyWords architecture
 
-**Proposal v0.1, not agreed or implemented.** Swing is recommended to keep the GUI and backend in one Java project. The PDF permits other frontend tools; no frontend choice has been confirmed. Java version, IDE/project layout and package name need agreement before coding.
+**Submission interface:** HTML and JavaScript served by a local JDK 17+ server. See the [browser integration contract](INTEGRATION.md#html-gui-for-submission) and [team handbook](TEAM_HANDBOOK.md) for the current draft.
 
 Role ownership below is updated for the current MyWords communication-aid scope. This is a proposed allocation pending team agreement. Each role owns a substantial programming module; shared integration and group deliverables are additional common work.
 
 ## Boundaries
 
 ```text
-Swing screens (D) -> AppController (A) -> models / FileManager (A)
-                                    -> SuggestionService / MemoryManager (C)
-                                    -> AIHelper (B) -> external AI provider
+MyWords.html + browser.js -> BrowserMain / BrowserApp -> AppController (A)
+                                                     -> models / FileManager (A)
+AppController -> SuggestionService / MemoryManager (C)
+              -> AIHelper (B) -> external AI provider
 AIHelper / controller -> FileManager (A) -> local .txt files
 ```
 
-Swing action handlers call Java backend methods; they must not contain duplicate storage, prompt or business logic. `AIHelper.ask` is the only network gateway for AI requests. `MemoryManager` selects permitted examples; `AIHelper` formats them into a prompt. File access remains centralized in `FileManager`.
+Browser controls submit local HTTP requests. Java handles storage, validation, prompt construction and business logic. `AIHelper.ask` is the only network gateway for AI requests. `MemoryManager` selects permitted examples; `AIHelper` formats them into a prompt. File access remains centralized in `FileManager`.
 
-Use a background worker for the network operation so the GUI remains responsive. `SwingWorker` is a proposed standard-library option, not an external framework. Read/update Swing components on the event-dispatch thread. Copy request data before the background call; serialize state changes and file writes. Reject a late response if profile/context changed or the user cancelled; never save it as feedback automatically. A simple “one AI request at a time” rule is sufficient for the prototype.
+The browser awaits the request asynchronously. Java captures a request snapshot and checks session and consent before dispatching to the provider. The browser checks the active conversation before showing returned candidates. Feedback is a separate user action.
 
 ## Proposed classes and ownership
 
 | Class | Owner | Responsibility |
 | --- | --- | --- |
-| `Main` | A | Startup, file loading and launching GUI |
+| `Main` | A | Compatibility launcher for the HTML server and controller factory for the Scanner menu |
 | `User` (abstract) | A | Shared user identity and abstract `canEditProfile()` behavior |
 | `Communicator` | A | Overrides role behavior for their own profile |
 | `Supporter` | A | Overrides behavior based on explicit local authorization |
@@ -38,9 +39,9 @@ Use a background worker for the network operation so the GUI remains responsive.
 | `Feedback` / `FeedbackManager` | C | Decisions, explicit reasons, confirmed corrections and consent |
 | `MemoryManager` | C | Filter and rank permitted phrases/feedback without Collections |
 | `CommunicationRules` | C | Meaning-preservation and context/consent eligibility rules |
-| Swing screen classes | D | User-facing navigation, composition, review, feedback and memory controls |
-| `InputValidator` | D | UI input validation and useful error details |
-| `ReportGenerator` / `ReportWriter` | D | User-selected, confirmed-phrase summary and text export |
+| `BrowserMain` / `BrowserApp` | D / integration | Serve the HTML and handle requests through Java |
+| `BrowserForm` / `BrowserRecords` | D / integration | Decode form data and manage browser-specific persisted records through FileManager |
+| `ReportGenerator` | D | User-selected, confirmed-phrase summary and text export |
 | `InvalidInputException` | A, used by all | Invalid fields, unsupported codes, invalid relationships |
 | `StorageFullException` | A | Array/log/data capacity limits |
 

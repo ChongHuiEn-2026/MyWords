@@ -20,10 +20,10 @@ Working deadline: **10 December 2026, 11:00 PM MYT** (confirm on the portal). Mi
 ## Roles (development roles, not app users)
 | Role | Package(s) | Owns |
 | --- | --- | --- |
-| A | `app`, `model`, `storage`, `exception` | Main, ConsoleMain/ConsoleMenu, AppController, RequestSnapshot, DemoData, User hierarchy, FileManager, RecordCodec |
+| A | `app`, `model`, `storage`, `exception` | Main (browser launcher), ConsoleMain/ConsoleMenu, AppController, RequestSnapshot, DemoData, User hierarchy, FileManager, RecordCodec |
 | B | `ai` | AIHelper (`String ask(String prompt)`), AIConfig, PromptBuilder, AIResponseParser, GenerationRequest |
 | C | `logic` (+ `Feedback`, `Suggestion` models) | SuggestionService, MemoryManager, CommunicationRules, FeedbackManager |
-| D | `ui` | MainFrame and screens, InputValidator, ReportGenerator |
+| D | HTML, JavaScript, `web`, `ui` | MyWords.html, browser.js, BrowserMain, BrowserApp, BrowserForm, BrowserRecords, ReportGenerator |
 
 Ask which role the user has. Edit only that role's files. If another role's class must change, say so and let the user coordinate. Never silently rewrite a teammate's module.
 
