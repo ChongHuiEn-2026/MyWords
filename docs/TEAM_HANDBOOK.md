@@ -130,7 +130,7 @@ Suggestion[] generateSuggestions(GenerationRequest r) throws AIServiceException,
 static AIConfig load(String path) throws AIServiceException            // reads config.txt
 String PromptBuilder.build(GenerationRequest r)
 String AIResponseParser.extractContent(String providerJson) throws AIServiceException
-String[] AIResponseParser.parseCandidates(String content) throws AIServiceException // exactly 3 distinct non-empty
+String[] AIResponseParser.parseCandidates(String content) throws AIServiceException // exactly 3 labeled meanings
 ```
 `GenerationRequest` getters: `getRequestId, getProfileId, getPartnerId, getContextCode, getKeywords, getLanguageStyle, getPreferredTone, isAiSharingEnabled, getAllowedPhrases, getAllowedFeedback`.
 
@@ -203,7 +203,7 @@ To reset demo data: close the app, delete the `data` folder, then run again.
 5. All public `FileManager` methods are `synchronized`, so the background request never reads arrays that the UI is changing at that moment.
 
 **B's `generateSuggestions`** (the contract D and A rely on):
-build prompt → `ask` → `extractContent` → `parseCandidates` (exactly 3) → **one** `fileManager.appendAILogBatch(..., texts)` call **before** returning (all three rows are written or none) → return 3 `Suggestion`s with source `"AI"`. Any problem → throw `AIServiceException` (never return fake or partial results).
+build prompt → `ask` → `extractContent` → `parseCandidates` (three objects with different recognized intent codes and distinct wording) → **one** `fileManager.appendAILogBatch(..., texts)` call **before** returning → return three `Suggestion`s with source `"AI"`. A short, repeated or malformed reply or failed log write throws `AIServiceException` so the controller can use fallback.
 
 **Approve / Edit / Reject** (D → C → A): the screen only works on the session confirmed with "Use this conversation". C's `createFeedback` builds and validates the record, then A's `recordDecision(feedback, phraseOrNull)` stores both together. Saving the phrase, saving the feedback and allowing AI reuse are each asked separately.
 
@@ -224,6 +224,8 @@ The original announcement asks for "a text menu that reads input with Scanner". 
 ## 7. Malaysian slang and rojak (core MVP feature, restored)
 
 MyWords is for everyday Malaysian speech. Accept local terms, informal spelling and mixed-language keywords. When the communicator's style is casual or rojak, keep the local expressions that fit the meaning. When the style is formal, change the register but keep the same intent. Always combine the **profile's `languageStyle`** with the **partner's `preferredTone` and context**. The communicator can review, edit or reject every suggestion.
+
+Role B preview correction requested 27 November. Each successful AI batch offers exactly three different plausible interpretations and preserves explicit details. If the AI cannot provide all three, the app asks for more keywords or a retry. The communicator chooses which meaning fits.
 
 Shared fictional test cases. Every role tests these:
 

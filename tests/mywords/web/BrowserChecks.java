@@ -13,6 +13,14 @@ import mywords.storage.FileManager;
 
 public class BrowserChecks {
     private static final HttpClient HTTP = HttpClient.newHttpClient();
+    private static final String INVITE =
+            "{\"intent\":\"INVITE\",\"text\":\"Jom yumcha with Ah Ma tomorrow?\"}";
+    private static final String CHECK_PLAN =
+            "{\"intent\":\"CHECK_PLAN\",\"text\":\"Are we having yumcha with Ah Ma tomorrow?\"}";
+    private static final String WISH =
+            "{\"intent\":\"EXPRESS_WISH\",\"text\":\"I feel like yumcha with Ah Ma tomorrow.\"}";
+    private static final String DUPLICATE =
+            "{\"intent\":\"INVITE\",\"text\":\"How about yumcha with Ah Ma tomorrow?\"}";
     private static String origin;
     private static String cookie = "";
 
@@ -22,7 +30,13 @@ public class BrowserChecks {
         DemoData.createIfEmpty(files);
         AIHelper mock = new AIHelper(files) {
             @Override public String ask(String prompt) {
-                return "{\"choices\":[{\"message\":{\"content\":\"[\\\"Can you tapau kopi for me later?\\\",\\\"Can tapau my kopi later?\\\",\\\"Could you get me takeaway kopi later?\\\"]\"}}]}";
+                if (prompt.contains("short check")) {
+                    return reply(INVITE, CHECK_PLAN);
+                }
+                if (prompt.contains("duplicate check")) {
+                    return reply(INVITE, DUPLICATE, WISH);
+                }
+                return reply(INVITE, CHECK_PLAN, WISH);
             }
         };
         try (BrowserMain server = BrowserMain.start(Path.of("MyWords.html"), files, mock, 0)) {
@@ -32,11 +46,20 @@ public class BrowserChecks {
             require(offline.contains("\"source\":\"SAVED\"") && !Files.exists(directory.resolve("ai_log.txt")),
                     "sharing starts off and uses saved phrases without logging AI");
             call("consent", "enabled=true");
-            String online = call("suggest", "partner=CP001&keywords=kopi+tapau+later");
-            require(online.contains("\"source\":\"AI\"") && online.contains("tapau"),
-                    "consented data passes through the Role B helper");
-            require(Files.readAllLines(directory.resolve("ai_log.txt")).size() == 4,
-                    "three AI results were written to the log");
+            String online = call("suggest", "partner=CP001&keywords=Ah+Ma+yumcha+tomorrow");
+            require(online.contains("Jom yumcha with Ah Ma tomorrow?")
+                    && online.contains("Are we having yumcha with Ah Ma tomorrow?")
+                    && online.contains("I feel like yumcha with Ah Ma tomorrow."),
+                    "the browser receives three distinct labeled meanings");
+            Path log = directory.resolve("ai_log.txt");
+            require(Files.readAllLines(log).size() == 4, "three AI results were written to the log");
+            for (String bad : new String[] {"short", "duplicate"}) {
+                String fallback = call("suggest", "partner=CP001&keywords=kopi+" + bad + "+check");
+                require(fallback.contains("Add more keywords or try again.")
+                        && fallback.contains("\"source\":\"SAVED\"") && !fallback.contains("\"source\":\"AI\""),
+                        bad + " reply offers guidance and saved phrases without partial AI output");
+                require(Files.readAllLines(log).size() == 4, bad + " reply does not write AI log rows");
+            }
             call("profile", "style=Formal+English&tone=Polite&gender=Female&language=en&theme=dark&font=large");
             call("need-add", "topic=Others&label=Pasar+malam");
             call("manual", "partner=CP001&keywords=pasar+malam&text=Can+we+go+to+pasar+malam%3F&reuse=false");
@@ -66,6 +89,11 @@ public class BrowserChecks {
                     "credentials and their partners reload together");
         }
         System.out.println("MyWords browser integration checks passed.");
+    }
+
+    private static String reply(String... options) {
+        String content = ("[" + String.join(",", options) + "]").replace("\\", "\\\\").replace("\"", "\\\"");
+        return "{\"choices\":[{\"message\":{\"content\":\"" + content + "\"}}]}";
     }
 
     private static String call(String action, String body) throws Exception {

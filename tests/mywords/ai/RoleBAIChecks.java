@@ -24,8 +24,9 @@ import mywords.storage.FileManager;
 public class RoleBAIChecks
 {
     private static final String CONTENT =
-            "[\"Boleh tapau nasi lemak, please?\",\"Can you say \\\"yum cha\\\" to Ah Ma?\","
-            + "\"I want kopi with 阿嬷.\"]";
+            "[" + option("REQUEST_ACTION", "Boleh tapau nasi lemak, please?") + ","
+            + option("CHECK_PLAN", "Are we saying \"yum cha\" to Ah Ma?") + ","
+            + option("EXPRESS_WISH", "I want kopi with 阿嬷.") + "]";
     private static final String ENVELOPE =
             "{\"usage\":{\"total_tokens\":42},\"choices\":[{\"finish_reason\":\"stop\","
             + "\"message\":{\"role\":\"assistant\",\"content\":"
@@ -48,6 +49,8 @@ public class RoleBAIChecks
         new LanguageCase("friends-formal", "FRIENDS", "later, tapau, nasi lemak, for me",
                 "Formal English", "Polite"),
         FAMILY_CASE,
+        new LanguageCase("family-rojak", "FAMILY", "Didi, jom yumcha, minum milo ais, esok",
+                "Manglish, short sentences", "Warm tone"),
         new LanguageCase("healthcare", "HEALTHCARE", "nurse, speak, now", "Formal English", "Polite")
     };
     private static int assertions;
@@ -67,6 +70,7 @@ public class RoleBAIChecks
             checkParser();
             checkPrompt();
             checkLanguagePrompts();
+            checkMalaysianWording();
             checkGeneration();
             checkFallback();
             checkConsentSnapshot();
@@ -98,7 +102,7 @@ public class RoleBAIChecks
             }
         }
         throw new IllegalArgumentException("Run without arguments for offline checks or use "
-                + "--live [friends-casual|friends-formal|family|healthcare].");
+                + "--live [friends-casual|friends-formal|family|family-rojak|healthcare].");
     }
 
     private static void checkLiveProvider(LanguageCase example) throws Exception
@@ -106,7 +110,7 @@ public class RoleBAIChecks
         System.out.println("Live check sends fictional keywords, context, style and tone to the configured AI provider.");
         System.out.println(example.name() + " | " + example.context() + " | " + example.style()
                 + " | " + example.tone() + " | " + example.keywords());
-        System.out.println("The three replies are logged in a temporary directory and then printed.");
+        System.out.println("The replies are logged in a temporary directory and then printed.");
         Path folder = Files.createTempDirectory("mywords-role-b-live-");
         Path log = folder.resolve("ai_log.txt");
         try
@@ -114,13 +118,13 @@ public class RoleBAIChecks
             AIHelper ai = new AIHelper(new FileManager(folder.toString()));
             Suggestion[] results = ai.generateSuggestions(example.request(true, new Phrase[0], new Feedback[0]));
             check(results.length == 3 && Files.readString(log).split("\\R").length == 4,
-                    "three suggestions logged before display");
+                    "all three suggestions are logged before display");
             for (Suggestion suggestion : results)
             {
                 check(Codes.SOURCE_AI.equals(suggestion.getSourceCode()), "live result source is AI");
                 System.out.println(suggestion.getText());
             }
-            System.out.println("Live Role B check passed: three logged AI suggestions.");
+            System.out.println("Live Role B check passed: " + results.length + " logged AI suggestion(s).");
             System.out.println("Review each suggestion for meaning, register and details absent from the keywords.");
         }
         finally
@@ -154,10 +158,29 @@ public class RoleBAIChecks
     private static void checkParser() throws Exception
     {
         AIResponseParser parser = new AIResponseParser();
+        String invite = option("INVITE", "Jom yumcha with Ah Ma tomorrow?");
+        String checkPlan = option("CHECK_PLAN", "Are we having yumcha with Ah Ma tomorrow?");
+        String wish = option("EXPRESS_WISH", "I feel like yumcha with Ah Ma tomorrow.");
+        expectAI(() -> parser.parseCandidates("[\"Jom yumcha later?\"]"), "old short response is refused");
+        expectAI(() -> parser.parseCandidates("[" + invite + "]"), "one meaning is refused");
+        expectAI(() -> parser.parseCandidates("[" + invite + "," + checkPlan + "]"), "two meanings are refused");
+        expectAI(() -> parser.parseCandidates("[]"), "model reports insufficient context");
+        check(parser.parseCandidates("[" + invite + "," + checkPlan + "," + wish + "]").length == 3,
+                "three different labeled interpretations are accepted");
+        expectAI(() -> parser.parseCandidates("[" + invite + "," + wish + ","
+                + option("INVITE", "How about yumcha with Ah Ma tomorrow?") + "]"), "repeated intent is refused");
+        expectAI(() -> parser.parseCandidates("[" + invite + "," + wish + ","
+                + option("MADE_UP", "Are we having yumcha with Ah Ma tomorrow?") + "]"), "unknown intent is refused");
+        for (String repeat : new String[] {"jom yumcha with Ah Ma tomorrow!",
+                "Jom yumcha with Ah Ma tomorrow, okay?", "Jom yumcha with Ah Ma tomorrow lah?"})
+        {
+            expectAI(() -> parser.parseCandidates("[" + invite + "," + wish + ","
+                    + option("CHECK_PLAN", repeat) + "]"), "cosmetic changes do not make a distinct option");
+        }
         String[] candidates = parser.parseCandidates(parser.extractContent(ENVELOPE));
         check(candidates.length == 3, "extracts three candidates");
         check("Boleh tapau nasi lemak, please?".equals(candidates[0]), "keeps commas and rojak");
-        check("Can you say \"yum cha\" to Ah Ma?".equals(candidates[1]), "decodes escaped quotes");
+        check("Are we saying \"yum cha\" to Ah Ma?".equals(candidates[1]), "decodes escaped quotes");
         check(candidates[2].contains("阿嬷"), "preserves Unicode");
         String fenced = "  ```json\r\n" + CONTENT + "\r\n```\n";
         String[] wrapped = parser.parseCandidates(fenced);
@@ -167,9 +190,13 @@ public class RoleBAIChecks
         expectAI(() -> parser.parseCandidates(fenced + "extra prose"), "prose after the fence");
         expectAI(() -> parser.parseCandidates("extra prose\n" + fenced), "prose before the fence");
         expectAI(() -> parser.parseCandidates("```html\n" + CONTENT + "\n```"), "non-JSON code fence");
-        expectAI(() -> parser.parseCandidates("```json\n[\"a\",\"b\",\"c\",\"d\"]\n```"),
+        expectAI(() -> parser.parseCandidates("```json\n[" + invite + "," + checkPlan + "," + wish
+                + "," + option("ASK_DETAIL", "What time are we meeting Ah Ma tomorrow?") + "]\n```"),
                 "four candidates inside a fence");
-        String[] escaped = parser.parseCandidates("[ \"C:\\\\kopi\", \"Ah Ma\\u0021\", \"tab\\there\" ]");
+        String[] escaped = parser.parseCandidates("["
+                + option("INVITE", "C:\\kopi") + ","
+                + "{\"intent\":\"CHECK_PLAN\",\"text\":\"Ah Ma\\u0021\"},"
+                + "{\"intent\":\"EXPRESS_WISH\",\"text\":\"tab\\there\"}]");
         check("C:\\kopi".equals(escaped[0]), "decodes backslashes");
         check("Ah Ma!".equals(escaped[1]), "decodes Unicode escapes");
         check("tab\there".equals(escaped[2]), "decodes tabs");
@@ -179,10 +206,12 @@ public class RoleBAIChecks
         expectAI(() -> parser.extractContent(ENVELOPE.replace("\"stop\"", "\"length\"")), "truncated provider finish");
         expectAI(() -> parser.extractContent("{\"choices\":[{\"message\":{\"content\":null}}]}"), "missing content");
         expectAI(() -> parser.extractContent("{\"meta\":{\"choices\":[]} }"), "nested choices cannot stand in for top level");
-        for (String invalid : new String[] {"[\"a\",\"b\"]", "[\"a\",\"b\",\"c\",\"d\"]",
-                "[\"a\",\" A \",\"c\"]", "[\"a\",\" \",\"c\"]", "[\"a\",12,\"c\"]",
-                "[\"a\",\"b\",\"c\",]", "[\"a\",\"b\\q\",\"c\"]", "[\"a\",\"b\\nc\",\"d\"]",
-                "[\"a\",\"b\",\"" + "z".repeat(501) + "\"]"})
+        String firstTwo = "[" + invite + "," + checkPlan + ",";
+        for (String invalid : new String[] {firstTwo + option("EXPRESS_WISH", " ") + "]",
+                firstTwo + "{\"intent\":\"EXPRESS_WISH\",\"text\":12}]",
+                firstTwo + wish + ",]", firstTwo + "{\"intent\":\"EXPRESS_WISH\",\"text\":\"b\\qc\"}]",
+                firstTwo + "{\"intent\":\"EXPRESS_WISH\",\"text\":\"b\\nc\"}]",
+                firstTwo + option("EXPRESS_WISH", "z".repeat(501)) + "]"})
         {
             expectAI(() -> parser.parseCandidates(invalid), "invalid candidate array");
         }
@@ -230,6 +259,24 @@ public class RoleBAIChecks
         }
     }
 
+    private static void checkMalaysianWording()
+    {
+        PromptBuilder builder = new PromptBuilder();
+        LanguageCase casual = new LanguageCase("casual", "FAMILY", "Didi, jom yumcha, minum milo ais, esok",
+                "Manglish, short sentences", "Warm tone");
+        Phrase[] memories = {
+            new Phrase("PH-test", "P-test", "CP-test", "FAMILY", "kopi", "Tomorrow kopi with Ah Ma lah.", true, 1)
+        };
+        String prompt = builder.build(casual.request(true, memories, new Feedback[0]));
+        check(!prompt.contains("Can tapau nasi lemak for me later?")
+                && !prompt.contains("Could you get me some nasi lemak to take away later?")
+                && !prompt.contains("Didi, esok jom yumcha minum milo ais?"),
+                "no fixed sentences for the model to imitate or blend into the current request");
+        check(prompt.contains("Tomorrow kopi with Ah Ma lah.")
+                && prompt.endsWith("Current keywords: " + quoteFixture(casual.keywords()) + "\n"),
+                "approved wording stays separate and the most recent data is the current keywords");
+    }
+
     private static void checkGeneration() throws Exception
     {
         Path folder = Files.createTempDirectory("mywords-role-b-log-");
@@ -247,6 +294,14 @@ public class RoleBAIChecks
             String logText = Files.readString(log);
             check(logText.split("\\R").length == 4 && logText.contains(suggestions[2].getText()), "all three logged before return");
             check(!logText.contains("tomorrow, Ah Ma, yum cha"), "raw prompt stays out of log");
+            StubAI repeated = new StubAI(new FileManager(folder.toString()), ENVELOPE.replace(quoteFixture(CONTENT),
+                    quoteFixture("[" + option("INVITE", "Jom yumcha later, okay?") + ","
+                            + option("CHECK_PLAN", "Jom yumcha later, alright?") + ","
+                            + option("EXPRESS_WISH", "I feel like yumcha later.") + "]")));
+            AIServiceException repeatedError = expectAI(
+                    () -> repeated.generateSuggestions(request(true, new Phrase[0], new Feedback[0])), "repeat replies");
+            check(repeatedError.getMessage().contains("more keywords") && Files.readString(log).equals(logText),
+                    "repeated suggestions give retry guidance and write no log rows");
             GenerationRequest defaultStyle = new GenerationRequest("REQ-test", "P-test", "CP-test",
                     "FAMILY", "kopi", "", "", true, new Phrase[0], new Feedback[0]);
             check(ai.generateSuggestions(defaultStyle).length == 3, "blank optional preferences work");
@@ -362,6 +417,11 @@ public class RoleBAIChecks
     private static String quoteFixture(String text)
     {
         return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    private static String option(String intent, String text)
+    {
+        return "{\"intent\":" + quoteFixture(intent) + ",\"text\":" + quoteFixture(text) + "}";
     }
 
     private static AIServiceException expectAI(Check action, String scenario) throws Exception

@@ -1,10 +1,20 @@
 package mywords.ai;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
 import mywords.exception.AIServiceException;
 import mywords.logic.CommunicationRules;
+import mywords.model.Codes;
 
 public class AIResponseParser
 {
+    private static final int REQUIRED_CANDIDATES = 3;
+    private static final String[] INTENTS = {"INVITE", "CHECK_PLAN", "EXPRESS_WISH", "REQUEST_ACTION",
+            "ASK_DETAIL", "ASK_PERMISSION", "OFFER_HELP", "GIVE_INFORMATION", "EXPRESS_FEELING",
+            "ACCEPT", "DECLINE"};
+    private static final Pattern CLOSING_FILLER = Pattern.compile(
+            "(?:,\\s*(?:okay|ok|alright|all right|yes|right)|\\s+(?:lah|lor|leh|mah|meh|ah))[\\s\\p{P}]*$");
+
     public String extractContent(String providerJson) throws AIServiceException
     {
         // Follow the documented path: choices[0].message.content.
@@ -37,31 +47,63 @@ public class AIResponseParser
     {
         Cursor array = new Cursor(unwrapCodeFence(content));
         array.expect('[');
-        String[] candidates = new String[3];
+        String[] candidates = new String[REQUIRED_CANDIDATES];
+        String[] intents = new String[REQUIRED_CANDIDATES];
         for (int i = 0; i < candidates.length; i++)
         {
-            if (i > 0)
+            if (array.take(']'))
             {
-                array.expect(',');
+                array.requireEnd();
+                throw notEnoughMeanings();
             }
-            String rawText = array.readString();
+            String item = array.readValue();
+            String intent = stringMember(item, "intent");
+            String rawText = stringMember(item, "text");
             String text = rawText.strip();
-            if (!CommunicationRules.isValidSentence(text) || !isSingleLine(rawText))
+            if (!Codes.isValid(intent, INTENTS) || !CommunicationRules.isValidSentence(text) || !isSingleLine(rawText))
             {
                 throw badResponse();
             }
+            String wording = comparableWording(text);
             for (int j = 0; j < i; j++)
             {
-                if (text.equalsIgnoreCase(candidates[j]))
+                if (intent.equals(intents[j]) || wording.equals(comparableWording(candidates[j])))
                 {
-                    throw badResponse();
+                    throw notEnoughMeanings();
                 }
             }
+            intents[i] = intent;
             candidates[i] = text;
+            if (i < candidates.length - 1 && !array.take(','))
+            {
+                array.expect(']');
+                array.requireEnd();
+                throw notEnoughMeanings();
+            }
         }
         array.expect(']');
         array.requireEnd();
         return candidates;
+    }
+
+    static String intentCodes()
+    {
+        return String.join(", ", INTENTS);
+    }
+
+    private static String stringMember(String item, String name) throws AIServiceException
+    {
+        Cursor field = new Cursor(new Cursor(item).member(name));
+        String value = field.readString();
+        field.requireEnd();
+        return value;
+    }
+
+    private static String comparableWording(String text)
+    {
+        String lowerCase = text.toLowerCase(Locale.ROOT);
+        return CLOSING_FILLER.matcher(lowerCase).replaceFirst("")
+                .replaceAll("\\p{P}", "").replaceAll("\\s+", " ").strip();
     }
 
     private static String unwrapCodeFence(String content) throws AIServiceException
@@ -144,7 +186,12 @@ public class AIResponseParser
 
     private static AIServiceException badResponse()
     {
-        return new AIServiceException("The AI reply did not contain three usable suggestions.");
+        return new AIServiceException("The AI returned an invalid reply. Ask for suggestions again or add more keywords.");
+    }
+
+    private static AIServiceException notEnoughMeanings()
+    {
+        return new AIServiceException("Could not find three different meanings. Add more keywords or try again.");
     }
 
     private static class Cursor
