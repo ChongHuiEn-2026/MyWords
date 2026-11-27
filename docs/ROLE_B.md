@@ -7,7 +7,7 @@ Owns the complete AI boundary: safe configuration, request construction, HTTP co
 - `AIHelper.java`: implement the required `String ask(String prompt)` gateway using `java.net.HttpURLConnection`; set finite timeouts, inspect status codes, bound response size, and never expose keys or raw sensitive error bodies.
 - `AIConfig.java`: read the key and agreed endpoint/model settings from a local `config.txt`; document evaluator setup and keep real credentials out of source control.
 - `PromptBuilder.java`: construct candidate-generation prompts from the approved request snapshot. Label saved phrases and rejected/corrected examples as data, preserve selected language, and prohibit invented intent.
-- `AIResponseParser.java`: construct and parse the agreed JSON using Java String/character operations only, validate exactly three distinct nonempty candidates, and reject malformed or oversized replies.
+- `AIResponseParser.java`: parse exactly three nonempty options with Java String/character operations. Each option has a recognized intent code and wording. Reject malformed, short, oversized or repeated batches.
 - `AIServiceException.java`: represent missing configuration, offline/HTTP/timeout and invalid-response failures with safe messages. Coordinate the catch/fallback behavior with A and D.
 - Coordinate the AI display log boundary with A/FileManager: each AI reply shown to a user is logged in `.txt` before it is displayed; no keys or prompts are logged.
 
@@ -21,3 +21,64 @@ Owns the complete AI boundary: safe configuration, request construction, HTTP co
 ## Acceptance evidence
 
 Show a clearly labeled live or mock response and exercise missing-key, offline, HTTP error and malformed-response handling. Explain the parser and demonstrate that the GUI remains usable through fallback. Record only checks actually performed.
+
+## How the Java flow works
+
+1. `AIConfig.load` reads the six settings from the local file in the working directory. Each setting has a place in a plain array. The code checks that the endpoint uses HTTPS and that the timeout and response limits are positive and bounded.
+2. `PromptBuilder.build` writes the selected context, language style and partner tone as quoted data. It adds up to three permitted saved phrases and two permitted feedback examples from that conversation, before putting the current keywords last. Ask for exactly three different plausible meanings, such as proposing a plan, checking whether it is happening, or expressing a wish. Require an empty array when the keywords support fewer than three. All options preserve explicit details and follow the selected register.
+3. `AIHelper.ask` sends the HTTPS POST with `HttpURLConnection` and returns the provider's JSON response. It uses the API key in the authorization header and requests a low sampling temperature of `0.1` to reduce wording variability. The configured timeouts and byte limit bound the read, and messages for failed requests contain only safe summaries. [ILMU Chat Completions parameters](https://docs.ilmu.ai/docs/api/chat-completions#parameters)
+4. `AIResponseParser.extractContent` finds `choices[0].message.content`. `parseCandidates` accepts precisely three objects with `intent` and `text`. It rejects repeated intent codes and identical wording after ignoring case, punctuation and common closing fillers. These checks cannot prove that different labels match the actual sentences or that subtle paraphrases have different meanings. The communicator still judges the meaning.
+5. `AIHelper.generateSuggestions` checks consent and logs the complete set in one batch before displaying it. An incomplete or repeated batch asks the communicator to add more keywords or try again and writes no AI log rows. Existing saved-phrase fallback remains available and keeps its own source label.
+
+## Evaluator setup
+
+In the browser, **Get suggestions** sends the chosen partner and keywords to Java. The controller snapshots the conversation and checks consent before calling the AI helper. The **AI sharing** control explains provider transmission and local suggestion logging.
+
+Copy `config.example.txt` to `config.txt` in the working directory used by Java. Set the full HTTPS Chat Completions URL, model ID and key locally. The service must accept a Bearer API key and a JSON POST with `model` and `messages`, then return one choice with the generated text in `choices[0].message.content`.
+
+The default values in the template are 10,000 ms to connect, 20,000 ms to read and 65,536 response bytes. The application uses saved phrases while the local file is missing or contains placeholders. Only the communicator should enable AI sharing after reading what will be sent. Use fictional demo data. Keep `config.txt` and runtime `data/` local.
+
+For the saved-phrase demo, [run the HTML GUI](../README.md#run-the-html-gui), choose **Quick Demo Login**, select **Family → Ah Ma → Eat or Drink → My Own Idea (Type Myself)**, and ask for suggestions with `kopi`.
+
+## Run the Role B checks
+
+From the repository root on macOS or Linux with JDK 17 or later:
+
+```sh
+classes=$(mktemp -d)
+javac --release 17 -encoding UTF-8 -d "$classes" $(find src tests -name '*.java')
+(cd "$classes" && java -cp . mywords.ai.RoleBAIChecks)
+```
+
+The checks use fictional data and a stub provider reply. They verify that all four handbook language cases pass their keywords, context, style and partner tone into the prompt. They also cover a stale click, a change to consent before dispatch, and a log with room for only one of the three suggestions. A request blocked by a conversation switch before dispatch generates no mock-provider call or log. The browser can discard a late result after Java has logged the validated batch locally.
+
+## Check the API with fictional input
+
+From the repository root, run the compile commands above and choose one of the commands below.
+
+```sh
+java -cp "$classes" mywords.ai.RoleBAIChecks --live friends-casual
+java -cp "$classes" mywords.ai.RoleBAIChecks --live friends-formal
+java -cp "$classes" mywords.ai.RoleBAIChecks --live family
+java -cp "$classes" mywords.ai.RoleBAIChecks --live family-rojak
+java -cp "$classes" mywords.ai.RoleBAIChecks --live healthcare
+```
+
+`--live` on its own runs the Family case. Each command sends one fictional request to the configured provider using the same Role B code as the app. It sends no saved memories and uses a temporary directory for the log. It checks the reply format and logging, prints the suggestions, then deletes the temporary log.
+
+Review the replies against [handbook section 7](TEAM_HANDBOOK.md#7-malaysian-slang-and-rojak-core-mvp-feature-restored). The casual Friends case should keep `tapau`. The formal Friends case should keep the takeaway request and `nasi lemak` in a formal register. The Family case should preserve `tomorrow`, `Ah Ma` and `yum cha`. The Healthcare case should ask to speak with a nurse now. In every case, look for new details the keywords did not supply and for options that differ only in phrasing. This review is a separate check from passing the parser.
+
+For `family-rojak`, read the replies aloud and check whether Mei is inviting Didi to yumcha and drink Milo ais tomorrow. Look for natural phrasing, no invented arrangements, and no forced `lah`. A prompt check confirms the instructions that go into the request. Only a live wording review can tell how the provider responds.
+
+### Live wording review, 26 November 2026
+
+The final run used ILMU Mini v3.3 (`ilmu-mini-v3.3`) with one fictional request per case and no memories. All four runs returned three distinct, parsed and logged suggestions. Earlier runs also passed the format check but introduced extra people, meetings or unrelated requests. The team still needs to agree on the demo model.
+
+| Case | What the final replies did | Wording review |
+| --- | --- | --- |
+| Casual Friends | All three kept `tapau`, `nasi lemak` and `later`. One changed the request to the speaker getting the food. | Two of three preserved the request. |
+| Formal Friends | Two used English takeaway wording, and one kept `tapau`. All three changed the request into the speaker's plan. | None clearly preserved both the intended request and the selected register. |
+| Family | All three kept `tomorrow`, `Ah Ma` and `yum cha` without adding a separate plan. | Three of three fit the case. |
+| Healthcare | All three asked for immediate speech and added no symptoms or advice. They addressed the nurse directly, with one using the more forceful wording “I require”. | Preferred framing and tone still need review. |
+
+The browser mock checks exercise three labeled options, rejection of short or repeated replies, and saved-phrase fallback. A live browser wording review with the selected demo model is pending.

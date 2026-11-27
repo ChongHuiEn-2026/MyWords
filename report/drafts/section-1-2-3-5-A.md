@@ -7,7 +7,7 @@ Draft by Role A, 26 Nov 2026, following `docs/REPORT_GUIDE.md`. Code snippets ar
 ## 1. Introduction
 
 ### 1.1 Project Overview
-MyWords – Let Me Finish My Sentence is a Java communication aid for Malaysians with expressive aphasia, who often know what they want to say but cannot form the full sentence. The Communicator types a few keywords, including Malaysian slang or mixed-language (rojak) words, and MyWords offers up to three candidate sentences, either from an AI service or from the Communicator's own saved phrases. The Communicator chooses, edits or rejects each sentence; nothing is sent or saved automatically. Confirmed sentences can be saved and reused offline. Each conversation partner (family, friends or healthcare) has its own context, and records from one context never appear in another. The system has a Java Swing GUI and a Scanner text menu, which share the same Java backend and `.txt` data files. MyWords is a student prototype and has not been clinically validated.
+MyWords – Let Me Finish My Sentence is a Java communication aid for Malaysians with expressive aphasia, who often know what they want to say but cannot form the full sentence. The Communicator types a few keywords, including Malaysian slang or mixed-language (rojak) words, and MyWords offers up to three candidate sentences, either from an AI service or from the Communicator's own saved phrases. The Communicator chooses, edits or rejects each sentence; nothing is sent or saved automatically. Confirmed sentences can be saved and reused offline. Each conversation partner (family, friends or healthcare) has its own context, and records from one context never appear in another. The HTML interface uses a local Java server. The Scanner text menu shares the Java backend and core `.txt` files. MyWords is a student prototype and has not been clinically validated.
 
 ### 1.2 Objectives
 - Turn a few keywords, including Malaysian slang and rojak, into up to three candidate sentences.
@@ -46,7 +46,7 @@ MyWords has two types of user, both subclasses of the abstract class `User`.
 ### 2.1 Class Diagram
 **Figure: UML class diagram** – `report/figures/uml.png` (source `uml.dot`, rendered with Graphviz). Insert it on a landscape page.
 
-The diagram groups the 32 classes into packages: `ui` (Swing screens), `app` (entry points and controller), `logic`, `ai`, `storage`, `model` and `exception`. Hollow-triangle arrows show inheritance (`Communicator` and `Supporter` extend `User`; `MainFrame` extends `JFrame`; the three custom exceptions extend `Exception`). Dashed arrows show which class calls which. Hollow diamonds show that `FileManager` holds arrays of the model objects.
+The diagram groups the 34 top-level Java classes by package, including `web` for the HTML connection and `ui` for report export. Hollow triangles show that `Communicator` and `Supporter` extend `User` and the three custom exceptions extend `Exception`. Dashed arrows show which class calls which. Hollow diamonds show that `FileManager` holds arrays of the model objects.
 
 ### 2.2 Class Descriptions
 | Class Name | Type | Purpose / Responsibility |
@@ -65,7 +65,7 @@ The diagram groups the 32 classes into packages: `ui` (Swing screens), `app` (en
 | `AppController` | Controller | Current session, permission checks, request snapshot, AI-or-fallback flow |
 | `RequestSnapshot` | Controller helper | Keywords, profile, partner and consent captured at the moment of the click |
 | `DemoData` | Setup | Creates fictional demo data on the first run |
-| `Main` | Entry point | Loads data and starts the Swing GUI |
+| `Main` | Entry point | Starts the HTML server through BrowserMain |
 | `ConsoleMain` | Entry point | Loads data and starts the Scanner text menu |
 | `ConsoleMenu` | Text frontend | Scanner menu that calls the same backend as the GUI |
 | `InvalidInputException` | Custom exception | Invalid input or an action that is not allowed |
@@ -80,8 +80,10 @@ The diagram groups the 32 classes into packages: `ui` (Swing screens), `app` (en
 | `MemoryManager` | Logic | Selects up to 3 phrases and 2 feedback records by keyword overlap |
 | `CommunicationRules` | Logic | Validation and sharing rules |
 | `FeedbackManager` | Logic | Builds and validates `Feedback` records |
-| `MainFrame` | GUI (subclass of `JFrame`) | Main Swing window |
-| `InputValidator` | GUI helper | Checks keywords and sentences before use |
+| `BrowserMain` | Entry point | Serves HTML assets and handles local HTTP |
+| `BrowserApp` | Browser adapter | Routes browser actions to Java services |
+| `BrowserForm` | HTTP form helper | Parses and validates request fields |
+| `BrowserRecords` | Storage adapter | Browser-specific records through FileManager |
 | `ReportGenerator` | GUI helper | Builds and writes the plain-text report |
 
 `[TO CHECK: B, C and D confirm their rows.]`
@@ -181,8 +183,8 @@ New IDs come from `nextId(prefix)`, which uses the largest existing number plus 
 ### 3.3 Custom Exception Handling
 | Exception | When It Is Thrown | Where It Is Caught / Handled |
 | --- | --- | --- |
-| `InvalidInputException` | Empty or too-long input; unknown context, decision or reason code; EDIT without text; REJECT without a reason; partner not in the profile; Supporter not allowed; conversation changed before sending; corrupt line in a data file | `MainFrame` and `ConsoleMenu` show the message and the program continues; `FileManager.loadAll()` restores the previous arrays first; `AppController` restores changed fields first |
-| `StorageFullException` | An array reaches its capacity (e.g. 20 profiles, 1,000 phrases) or `ai_log.txt` would exceed 5 MB | `MainFrame` / `ConsoleMenu` show "… storage is full"; `AIHelper` turns a full log into `AIServiceException` |
+| `InvalidInputException` | Empty or too-long input; unknown context, decision or reason code; EDIT without text; REJECT without a reason; partner not in the profile; Supporter not allowed; conversation changed before sending; corrupt line in a data file | The browser shows the Java error response and the Scanner menu prints the error and the program continues; `FileManager.loadAll()` restores the previous arrays first; `AppController` restores changed fields first |
+| `StorageFullException` | An array reaches its capacity (e.g. 20 profiles, 1,000 phrases) or `ai_log.txt` would exceed 5 MB | The browser and Scanner menu show the storage capacity error; `AIHelper` turns a full log into `AIServiceException` |
 | `AIServiceException` | Missing or placeholder key, no network, timeout, HTTP error status, invalid or oversized reply, not exactly three sentences, AI sharing off | `AppController.requestSuggestions()` catches it and shows saved phrases with the reason (fallback); the app keeps working |
 
 Code 5 shows the usual pattern. All checks run before the array is changed, so a refused record leaves the data untouched.
@@ -245,4 +247,4 @@ private void commit() throws IOException
 | 7 | AI feature | `[TO CHECK: Yes after PR #4 is merged]` | §3.6; Figures 4, 14, 16 |
 | 8 | All planned features working | `[TO CHECK at code freeze]` | §4 (all figures) |
 
-Additional requirements from the original announcement: Scanner text menu (`ConsoleMain`, Figure 15) and at least 10 classes (32 classes, §2.2).
+Additional requirements from the original announcement: Scanner text menu (`ConsoleMain`, Figure 15) and at least 10 classes (34 top-level Java classes, §2.2).

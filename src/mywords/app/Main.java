@@ -4,19 +4,16 @@
  */
 package mywords.app;
 import java.io.IOException;
-import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
 import mywords.ai.AIHelper;
 import mywords.exception.InvalidInputException;
 import mywords.exception.StorageFullException;
 import mywords.logic.MemoryManager;
 import mywords.logic.SuggestionService;
 import mywords.storage.FileManager;
-import mywords.ui.MainFrame;
+import mywords.web.BrowserMain;
 public class Main
 {
-    // Owner: Role A. GUI 版起点: 读资料 -> 建 service (只建一次) -> 开 Swing 视窗
-    // 文字菜单版的起点是 ConsoleMain,两个都用下面同一个 createController()
+    // The Scanner menu uses this factory for the shared backend.
     public static AppController createController() throws IOException, InvalidInputException, StorageFullException
     {
         FileManager fileManager = new FileManager("data"); //资料放在 project 里的 data/ 资料夹
@@ -27,16 +24,13 @@ public class Main
     }
     public static void main(String[] args)
     {
-        AppController controller;
         try
         {
-            controller = createController();
+            BrowserMain.main(args);
         }
-        catch (Exception e) //读档失败: 告诉用户,不要假装成功
+        catch (IOException | InvalidInputException | StorageFullException e)
         {
-            JOptionPane.showMessageDialog(null, "Could not load saved data: " + e.getMessage(), "MyWords", JOptionPane.ERROR_MESSAGE);
-            return; //资料坏了就不继续,避免盖掉原本的档案
+            System.err.println("Could not start MyWords: " + e.getMessage());
         }
-        SwingUtilities.invokeLater(() -> new MainFrame(controller).setVisible(true)); //GUI 要在 Swing 的 thread 开
     }
 }

@@ -4,10 +4,10 @@ Owns the complete user-facing flow and an in-app report/export feature. Build ag
 
 ## Main programming ownership
 
-- Swing UI classes for the agreed screens: home/profile and partner/context selection, keyword/manual composition, candidate review, feedback, saved phrases/memory controls, and help/about/privacy information. Use readable text, clear navigation and large actionable controls.
-- `InputValidator.java`: reusable checks for required fields, keywords, decisions, reason codes and other agreed values; preserve entered text when showing a correction.
+- `MyWords.html` and `browser.js` for the submission screens: home/profile and partner/context selection, keyword/manual composition, candidate review, feedback, saved phrases/memory controls, and help/about/privacy information. Use readable text, clear navigation and large actionable controls.
+- `mywords.web`: connect same-origin browser requests to the shared Java backend. Use the Java form and communication rules for validation, and preserve entered text when showing a correction.
 - `ReportGenerator.java`: create a readable conversation summary from only the phrases the communicator explicitly selected for export and already confirmed. Keep AI suggestions marked as suggestions; do not include unconfirmed or rejected content.
-- `ReportWriter.java` (or an equivalent focused class): export the user-reviewed summary to the agreed `.txt` format/location with safe field handling and clear write errors. Coordinate the schema with A. Add only the minimal export screen/control needed for this same-app feature.
+- Preview the Java-generated report and download the reviewed text as a `.txt` file.
 - Connect loading, empty, invalid-input, offline/fallback, save-success and file-error states to the correct backend calls. AI replies are displayed only after the required logging step succeeds.
 
 ## Accessibility and consent

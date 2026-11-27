@@ -2,17 +2,20 @@
 
 ## Current status
 
-Pack v0.1 prepared 24 November 2026. **Design proposed; no implementation inspected.**
+The original planning baseline dates to 24 November 2026. The [team handbook](TEAM_HANDBOOK.md) describes the current draft build.
 
 | ID | Status | Statement | Basis |
 | --- | --- | --- | --- |
 | D01 | User-confirmed | Project idea is MyWords — Let Me Finish My Sentence | S3 selected final idea |
 | D02 | Historical | An earlier context pack assigned the requesting student to Role C | Prior context; current request does not say which role the requester holds |
 | D03 | Source requirement | Connected GUI and Java backend; inheritance/polymorphism/custom exceptions required | S1 pp.1–2 |
-| D04 | Proposed | Swing, class design, method/data contracts, privacy controls and dated plan in this pack | New synthesis; no team acceptance supplied |
+| D04 | Historical proposal | Initial GUI and integration design | Superseded for the GUI by D09 |
 | D05 | Open | Fourth deliverable and Scanner-with-GUI discrepancy | S1/S2 conflict; Q01/Q02 |
 | D06 | User-confirmed | Keep the same MyWords app and assign: A group leader/system architect/core data manager; B AI integration; C clinical features/logic; D UI/report generator. Balance the programming workload across all four roles. | Current direct user request and attached role/task screenshots |
 | D07 | Proposed; needs D's review | A rejected candidate must never be reused as an example. If the communicator provides a correction after rejecting it, only that confirmed correction may be reused, and only with separate explicit AI-reuse consent. Rejection without a correction is not shared. | Role C code review on 25 November 2026; confirm with Role D before treating this as the team decision |
+| D08 | Role B implementation; standalone live check passed | Role B uses the HTTPS Chat Completions request and response format. The endpoint, model and credential are deployment settings read from local `config.txt`. | [Role B handoff](ROLE_B.md) |
+
+| D09 | Requester-confirmed, draft PR #4 | Use the Java-backed HTML interface as the submission GUI. Retain the Scanner menu while Q02 is open. | 27 Nov 2026 project direction. Team review and merge are pending. |
 
 ## Accepting or changing a design
 
@@ -36,7 +39,16 @@ Use this only after inspecting actual work. Record failed checks as well as pass
 
 | Date MYT | Requirement/task | Actual code revision/files | Check performed | Observed result | Evidence artifact | Owner |
 | --- | --- | --- | --- | --- | --- | --- |
+| 26 Nov 2026 | AI config, prompt, parser and fallback | `src/mywords/ai/` | Compiled for Java 17 and ran Role B and Role C checks | 48 Role B assertions and all seven Role C groups passed. During development, failing checks reproduced a parser cursor error and rejection of valid blank preferences before fixes. | [Role B checks](../tests/mywords/ai/RoleBAIChecks.java) | B |
+| 26 Nov 2026 | Swing and AI transport | `mywords.app.Main`, `AIHelper` | Exercised the Swing buttons with fictional data and a local HTTPS mock | Three unselected AI suggestions and three log rows on success. Saved phrases remained available with sharing off and after HTTP 401/429/503, a redirect, malformed JSON, oversized or invalid UTF-8 replies, timeout and connection failure. Live provider test pending. | [Role B handoff](ROLE_B.md) | B |
+| 26 Nov 2026 | Standalone Role B API check | [Role B checks](../tests/mywords/ai/RoleBAIChecks.java) | Used a local HTTPS mock to test the opt-in check independently of Swing | One fictional request reached the mock and returned three logged suggestions. A placeholder key stopped the check before any request. Live endpoint verification is pending. | [Role B handoff](ROLE_B.md) | B |
+| 26 Nov 2026 | Live service and AI reply formatting | [Role B checks](../tests/mywords/ai/RoleBAIChecks.java) | One fictional live request, followed by tests of a fenced JSON reply using a local HTTPS mock | The live service returned a response that failed array validation. No suggestions were returned. After the prompt and parser update, the mock returned three validated and logged suggestions. 54 Role B assertions and all seven Role C groups passed. See the standalone live retest below. | [Role B handoff](ROLE_B.md) | B |
+| 26 Nov 2026 | Standalone live AI retest | [AIHelper](../src/mywords/ai/AIHelper.java) and [AIResponseParser](../src/mywords/ai/AIResponseParser.java) | Sent one fictional Family request with rojak wording and no memory examples | The service returned three distinct suggestions that Java parsed and logged before returning. The suggestions kept familiar terms but included details absent from the keywords. The live Swing flow remains pending the session and consent fix. | [Role B handoff](ROLE_B.md) | B |
+| 26 Nov 2026 | Integrated consent and AI log batch | [AIHelper](../src/mywords/ai/AIHelper.java) and [Role B checks](../tests/mywords/ai/RoleBAIChecks.java) with the current `main` integrated | Compiled for Java 17, ran the Role B and Role C suites, and opened Swing with fictional data and a local HTTPS mock | 69 Role B assertions and all seven Role C groups passed. A stale click sent zero mock calls. The near-capacity check reproduced a partial row before the batch change and confirmed zero rows added after it. Swing showed three unselected mock suggestions with three log rows, and showed saved phrases with sharing off and after HTTP 429. Live Swing remains pending the enable-dialog disclosure. | [Role B handoff](ROLE_B.md) | B |
 | 26 Nov 2026 | Role C logic checks on required Java version | `214fa1a`; all `src/` and `tests/` Java files; `RoleCLogicChecks` | JDK 17.0.12: compile with `javac --release 17 -encoding UTF-8`, then run `mywords.logic.RoleCLogicChecks` | Compilation succeeded; all 7 scenario groups (25 assertions) passed | `docs/ROLE_C_CHECKS.md` | C |
+
+| 27 Nov 2026 | Role D HTML connected to Java | `mywords.web.BrowserMain`, `MyWords.html` | Compiled for Java 17, ran Role B/C and browser backend checks, and drove Chrome at desktop and phone widths with the mock provider | 69 Role B assertions and 7 Role C groups passed. Browser checks covered Java accounts and restart, scope, sharing off, saved fallback, approved mock replies, editing, saving, feedback and exporting selected phrases. Live-provider browser test remains to be performed by the communicator. | [Browser backend checks](../tests/mywords/web/BrowserChecks.java) | Integration branch |
+| 27 Nov 2026 | HTML submission draft | `mywords.web.BrowserMain`, `mywords.app.Main`, `ConsoleMain` | Compiled for Java 17. Ran Role B and C checks, the browser integration suite, the Scanner capacity script and the fictional `kopi` flow in the browser. | 82 Role B assertions and 7 Role C groups passed. Browser checks passed for three mock options, short/repeated replies, saved-phrase fallback, logging and restart. The browser displayed the saved Ah Ma phrase with AI sharing off. The Scanner menu reported full profile storage. Live provider wording remains open. | [Browser checks](../tests/mywords/web/BrowserChecks.java) | Draft PR #4 |
 
 ## Shared-contract change request template
 

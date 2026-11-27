@@ -20,7 +20,7 @@ Each member writes **their own sections** in a separate file `report/drafts/sect
 
 | Template section | Owner | Reviewer | Content (source of truth) |
 | --- | --- | --- | --- |
-| Cover page | A | all | Title **MyWords – Let Me Finish My Sentence**; Track **3: Healthcare**; frontend **Java Swing**; group/lecturer/matric `[TO CHECK]` |
+| Cover page | A | all | Title **MyWords – Let Me Finish My Sentence**; Track **3: Healthcare**; frontend **HTML with a local Java backend**; group/lecturer/matric `[TO CHECK]` |
 | 1.1 Project Overview | A | C | One paragraph. Use the overview text in section 3.1 below |
 | 1.2 Objectives | A | all | Use the 5 objectives in section 3.2 |
 | 1.3 Scope and User Roles | A | D | Communicator and Supporter permissions + business rules (section 3.3) |
@@ -32,7 +32,7 @@ Each member writes **their own sections** in a separate file `report/drafts/sect
 | 3.2 Key Methods and Business Rules | each role, 2–3 methods each | A merges | Method list in section 3.7 |
 | 3.3 Custom Exception Handling | A | all | Table in section 3.8 |
 | 3.4 File Input and Output | A | B | Save (temp file + replace), load (validate, then swap), rollback, AI log |
-| 3.5 Frontend and Connection | D | A | Screens and navigation; screen → `AppController` → backend; `SwingWorker` + `RequestSnapshot`; Scanner text menu shares the same backend |
+| 3.5 Frontend and Connection | D | A | Screens and navigation, local form POST → `BrowserMain` → `BrowserApp` → `AppController`, and JSON response. The Scanner menu shares the backend. |
 | 3.6 AI Feature | B | C, D | What is sent, `AIHelper.ask`, manual JSON, 3 suggestions, log, fallback, consent; one fictional input → output example |
 | 4. Screenshots | each role takes the figures assigned in section 5 | A | Fixed figure list, section 5 |
 | 5. Requirements Checklist | A | all | Table in section 3.9 |
@@ -75,7 +75,7 @@ Each member writes **their own sections** in a separate file `report/drafts/sect
 ## 3. Shared facts (copy from here, do not re-invent)
 
 ### 3.1 Overview (for 1.1)
-MyWords – Let Me Finish My Sentence is a Java communication aid for Malaysians with expressive aphasia, who often know what they want to say but cannot form the full sentence. The Communicator types a few keywords, including Malaysian slang or mixed-language (rojak) words, and MyWords offers up to three candidate sentences, either from an AI service or from the Communicator's own saved phrases. The Communicator chooses, edits or rejects each sentence; nothing is sent or saved automatically. Confirmed sentences can be saved and reused offline. Each conversation partner (family, friends or healthcare) has its own context, and records from one context never appear in another. The system has a Java Swing GUI and a Scanner text menu, which share the same Java backend and `.txt` data files.
+MyWords – Let Me Finish My Sentence is a Java communication aid for Malaysians with expressive aphasia, who often know what they want to say but cannot form the full sentence. The Communicator types a few keywords, including Malaysian slang or mixed-language (rojak) words, and MyWords offers up to three candidate sentences, either from an AI service or from the Communicator's own saved phrases. The Communicator chooses, edits or rejects each sentence; nothing is sent or saved automatically. Confirmed sentences can be saved and reused offline. Each conversation partner (family, friends or healthcare) has its own context, and records from one context never appear in another. The HTML interface uses a local Java server. The Scanner text menu shares the Java backend and core `.txt` files.
 
 ### 3.2 Objectives (for 1.2)
 1. Turn a few keywords, including Malaysian slang and rojak, into up to three candidate sentences.
@@ -94,7 +94,7 @@ MyWords – Let Me Finish My Sentence is a Java communication aid for Malaysians
 
 Business rules: AI sharing is OFF for a new profile; at most 3 suggestions, none pre-selected; EDIT needs the edited text; REJECT needs a reason; a saved phrase must use its partner's context; HEALTHCARE records never appear in FAMILY or FRIENDS suggestions; saving and AI reuse are separate choices; a request is only sent for the conversation and consent that existed when the user clicked; IDs come from `FileManager.nextId`; arrays have fixed capacities and refuse new records when full.
 
-### 3.4 Classes (for 2.1 UML and 2.2) – 32 classes
+### 3.4 Classes (for 2.1 UML and 2.2) – 34 top-level Java classes
 | Class | Type | Owner | Purpose |
 | --- | --- | --- | --- |
 | `User` | Abstract class | A | Parent of all app users; abstract `getTypeCode()`, `canEditProfile()` |
@@ -111,7 +111,7 @@ Business rules: AI sharing is OFF for a new profile; at most 3 suggestions, none
 | `AppController` | Controller | A | Session, permissions, request snapshot, AI→fallback flow |
 | `RequestSnapshot` | Controller helper | A | Keywords + profile + partner + consent captured at the click |
 | `DemoData` | Setup | A | Creates fictional demo data on first run |
-| `Main` | Entry point | A | Starts the Swing GUI |
+| `Main` | Entry point | A | Starts the HTML server through BrowserMain |
 | `ConsoleMain` | Entry point | A | Starts the Scanner text menu |
 | `ConsoleMenu` | Text frontend | A | Scanner menu using the same backend |
 | `InvalidInputException` | Custom exception | A | Invalid input or not allowed |
@@ -126,8 +126,10 @@ Business rules: AI sharing is OFF for a new profile; at most 3 suggestions, none
 | `MemoryManager` | Logic | C | Picks up to 3 phrases + 2 feedback by keyword overlap |
 | `CommunicationRules` | Logic | C | Validation and sharing rules |
 | `FeedbackManager` | Logic | C | Builds and validates `Feedback` |
-| `MainFrame` | GUI (extends `JFrame`) | D | Main Swing window |
-| `InputValidator` | GUI helper | D | Keyword/sentence validation |
+| `BrowserMain` | Entry point | Integration | Serves HTML assets and handles local HTTP |
+| `BrowserApp` | Browser adapter | Integration | Routes browser actions to Java services |
+| `BrowserForm` | HTTP form helper | Integration | Parses and validates request fields |
+| `BrowserRecords` | Storage adapter | Integration | Browser-specific records through FileManager |
 | `ReportGenerator` | GUI helper | D | Builds and writes the `.txt` report |
 
 UML rules: show the `User` hierarchy with inheritance arrows, the 3 exceptions extending `Exception`, and for each class only the **key** fields/methods (≤ 5). Draw it with draw.io or PlantUML. Save the source and `report/figures/uml.png`.
@@ -150,15 +152,15 @@ Header lines look like `#MyWords|1|PHRASES`. (In the Word table, write `|` norma
 
 ### 3.7 Key methods (for 3.2) – each owner explains theirs
 - **A:** `FileManager.savePhrase` (validate → capacity → upsert → commit with rollback), `FileManager.loadAll` (read into temporary arrays, validate, then swap), `AppController.requestSuggestions(RequestSnapshot)` (session + consent re-check → AI or fallback).
-- **B:** `AIHelper.ask` (HTTP POST, timeouts, status codes), `AIResponseParser.parseCandidates` (exactly 3 distinct strings), `AIHelper.generateSuggestions` (log before return).
+- **B:** `AIHelper.ask` (HTTP POST, timeouts, status codes), `AIResponseParser.parseCandidates` (three recognized, distinct intent codes and three usable sentences), `AIHelper.generateSuggestions` (log before return).
 - **C:** `MemoryManager.selectPhrases` (keyword overlap + context isolation), `SuggestionService.savedPhraseFallback`, `FeedbackManager.createDecision` (EDIT/REJECT rules).
-- **D:** `MainFrame.requestSuggestions` (`SwingWorker` + snapshot + stale check), `MainFrame.saveDecision` (separate consents), `ReportGenerator.writeReport`.
+- **D:** `BrowserApp.suggestions` (request snapshot), `BrowserApp.decision` (separate consents), `ReportGenerator.buildReport` for a preview and download.
 
 ### 3.8 Custom exceptions (for 3.3)
 | Exception | When it is thrown | Where it is caught / handled |
 | --- | --- | --- |
-| `InvalidInputException` | Empty or too-long input; unknown context/decision/reason code; EDIT without text; REJECT without reason; partner not in profile; Supporter not allowed; conversation changed before sending; corrupt line in a data file | `MainFrame.showError` / `ConsoleMenu.showError` show the message; `FileManager.loadAll` restores the previous arrays first; `AppController` restores changed fields first |
-| `StorageFullException` | An array reaches capacity (e.g. 20 profiles, 1000 phrases) or `ai_log.txt` would exceed 5 MB | `MainFrame` / `ConsoleMenu` show "… storage is full"; `AIHelper` converts a full log into `AIServiceException` |
+| `InvalidInputException` | Empty or too-long input; unknown context/decision/reason code; EDIT without text; REJECT without reason; partner not in profile; Supporter not allowed; conversation changed before sending; corrupt line in a data file | The browser shows the Java error response and the Scanner menu prints the error; `FileManager.loadAll` restores the previous arrays first; `AppController` restores changed fields first |
+| `StorageFullException` | An array reaches capacity (e.g. 20 profiles, 1000 phrases) or `ai_log.txt` would exceed 5 MB | The browser and Scanner menu show the storage capacity error; `AIHelper` converts a full log into `AIServiceException` |
 | `AIServiceException` | Missing/placeholder key, no network, timeout, HTTP 401/402/429/5xx, invalid or oversized reply, not exactly 3 sentences, AI sharing off | `AppController.requestSuggestions` catches it and shows saved phrases with the reason (fallback); the app keeps working |
 
 Demo for the video: `InvalidInputException` = press Get suggestions with empty keywords, or Ah Hui (unauthorised Supporter) tries to change style/tone; `StorageFullException` = section 6 script; `AIServiceException` = remove or rename `config.txt` and turn AI sharing on, then Get suggestions shows "AI unavailable: … Showing saved phrases."
@@ -174,7 +176,7 @@ Demo for the video: `InvalidInputException` = press Get suggestions with empty k
 | 6 | Data saved to and reloaded from files | §2.4, §3.4, Fig 9–10 |
 | 7 | AI feature | §3.6, Fig 4, Fig 14 |
 | 8 | All planned features working | §4 (all figures) |
-Extra (original announcement): Scanner text menu, Fig 15; at least 10 classes (32).
+Extra (original announcement): Scanner text menu, Fig 15; at least 10 classes (34 top-level classes).
 
 ### 3.10 Real challenges (for 6) – pick yours, add details you remember
 | Challenge | How it was solved | Role |
@@ -185,7 +187,7 @@ Extra (original announcement): Scanner text menu, Fig 15; at least 10 classes (3
 | A sentence containing `\|` or a newline broke the `.txt` format | `RecordCodec` escaping, with a state machine when reading | A |
 | A failed save left memory and files different | Backup + rollback in `FileManager.commit()` | A |
 | The AI sometimes added details absent from the keywords, or wrapped JSON in Markdown | Stricter prompt, low temperature, parser accepts fenced JSON | B |
-| The PDF requires a GUI but the announcement asks for a Scanner menu | Both: Swing GUI plus `ConsoleMenu` on the same backend; lecturer asked (Q02) | A |
+| The PDF requires a GUI but the announcement asks for a Scanner menu | HTML GUI plus `ConsoleMenu` on the shared backend while Q02 is open | A |
 | Git: conflicting pushes, line endings, account transfer | `git pull` before push; add only own files; handbook section 9 | all |
 
 ### 3.11 Individual contribution (for 8) – must match `git log`
@@ -194,7 +196,7 @@ Extra (original announcement): Scanner text menu, Fig 15; at least 10 classes (3
 | Hui En `[matric]` | A – core data, storage, controller, integration | `User` hierarchy, models, `FileManager`, `RecordCodec`, `AppController`, `RequestSnapshot`, `DemoData`, `Main`, `ConsoleMain`/`ConsoleMenu`, handbook |
 | xxianen `[name, matric]` | B – AI integration | `AIHelper`, `AIConfig`, `PromptBuilder`, `AIResponseParser`, `RoleBAIChecks` |
 | weinisi `[name, matric]` | C – communication logic | `SuggestionService`, `MemoryManager`, `CommunicationRules`, `FeedbackManager`, `RoleCLogicChecks` |
-| shaniece `[name, matric]` | D – GUI and report | `MainFrame`, `InputValidator`, `ReportGenerator` |
+| shaniece `[name, matric]` | D – GUI and report | `MyWords.html`, browser workflow, `ReportGenerator` |
 
 ---
 
@@ -245,7 +247,7 @@ rm -rf data && mv data_backup data  # restore
 Recording: 1080p, readable font size, microphone check; upload as `[TO CHECK: MP4 or unlisted link, lecturer Q05]`.
 
 ## 7. Submission package (one ZIP, name `G[NN]_T3_MyWords.zip`, group number `[TO CHECK]`)
-Include: `src/`, `tests/`, `docs/`, `README.md` (with run steps for `mywords.app.Main` and `ConsoleMain`), `config.example.txt`, and a **`data/` folder with fresh fictional demo data** (delete `data`, run once, close; the template requires the `.txt` data files).
+Include `MyWords.html`, `browser.js`, `mywords.css`, `tailwind.config.cjs`, `src/`, `tests/`, `docs/`, `README.md` (run steps for `BrowserMain` and `ConsoleMain`), `config.example.txt` and a **`data/` folder with fresh fictional `.txt` data**. Generate the sample data from a clean checkout.
 Exclude: `config.txt`, real keys, `out/`, `bin/`, `.vscode/`, `.git/`, `ai_log.txt` from real tests, `latest_roles/` (archive).
 Final check: unzip into an empty folder → compile → run GUI and text menu → restart → data reloads. Report `GroupNo_TrackNo_ProjectName.docx/.pdf`; both upload destinations `[TO CHECK: Q04]`.
 

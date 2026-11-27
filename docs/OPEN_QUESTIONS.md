@@ -13,7 +13,7 @@ Status as of 24 November 2026: **none of the answers below has been supplied.** 
 | Q05 | Accepted video format/platform, size limit and evaluator access settings? | S1 p.3 contains example placeholder text | A; before recording/upload |
 | Q06 | Any required log retention/evidence constraints when a user deletes local communication data? | O10 logs displayed AI replies; proposed privacy deletion affects logs | A/B; use fictional evidence while awaiting answer |
 
-Working position for Q01: prepare the three explicitly named deliverables and leave the fourth unknown. Working position for Q02: GUI is compulsory; plan a reusable backend so a small Scanner adapter remains possible. No lecturer answer may be invented or inferred from silence.
+Working position for Q01: prepare the three explicitly named deliverables and leave the fourth unknown. Working position for Q02: the submission GUI is HTML, and the Scanner menu is retained while the requirement is open. No lecturer answer may be invented or inferred from silence.
 
 ## Team decisions
 
@@ -21,7 +21,7 @@ Working position for Q01: prepare the three explicitly named deliverables and le
 | --- | --- | --- |
 | T01 | Four names/matric numbers, group number/name, same OCC, lecturer and registration status | Unknown |
 | T02 | Confirm each member accepts the proposed A–D programming allocation; shared repository and change reviewer | Proposed role files; no repository URL supplied |
-| T03 | Frontend, Java version, IDE/project style, package and main class | Swing proposed; versions/build paths unknown |
+| T03 | Confirm the evaluator IDE and clean run steps | HTML selected on 27 Nov. JDK 17+, package `mywords`, browser entry point `mywords.web.BrowserMain`. |
 | T04 | Provider, endpoint, model, credits, retention/data-use terms and API schema | Unknown; B verifies primary provider docs before coding |
 | T05 | Contract v0.1: exact models, signatures, counters/capacities, schemas, response format and logging behavior | Review `INTEGRATION.md` together; no accepted contract yet |
 | T06 | Minimum deliverable scope and deferred features | Typed/selected keywords, permitted memory, offline saved phrases proposed; repair/audio deferred |

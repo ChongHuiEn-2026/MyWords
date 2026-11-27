@@ -1,20 +1,419 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package mywords.ai;
+
+import java.util.Locale;
+import java.util.regex.Pattern;
 import mywords.exception.AIServiceException;
+import mywords.logic.CommunicationRules;
+import mywords.model.Codes;
+
 public class AIResponseParser
 {
-    // Owner: Role B. 不用 JSON library,自己用 String/char 扫描
+    private static final int REQUIRED_CANDIDATES = 3;
+    private static final String[] INTENTS = {"INVITE", "CHECK_PLAN", "EXPRESS_WISH", "REQUEST_ACTION",
+            "ASK_DETAIL", "ASK_PERMISSION", "OFFER_HELP", "GIVE_INFORMATION", "EXPRESS_FEELING",
+            "ACCEPT", "DECLINE"};
+    private static final Pattern CLOSING_FILLER = Pattern.compile(
+            "(?:,\\s*(?:okay|ok|alright|all right|yes|right)|\\s+(?:lah|lor|leh|mah|meh|ah))[\\s\\p{P}]*$");
+
     public String extractContent(String providerJson) throws AIServiceException
     {
-        // TODO Role B: 从 provider 的 JSON envelope 拿出 model content
-        throw new AIServiceException("extractContent not implemented yet (Role B)");
+        // Follow the documented path: choices[0].message.content.
+        Cursor choices = new Cursor(new Cursor(providerJson).member("choices"));
+        choices.expect('[');
+        String firstChoice = choices.readValue();
+        choices.expect(']');
+        choices.requireEnd();
+
+        String finishReason = new Cursor(firstChoice).member("finish_reason");
+        if (finishReason != null && !"\"stop\"".equals(finishReason))
+        {
+            throw badResponse();
+        }
+
+        String message = new Cursor(firstChoice).member("message");
+        String refusal = new Cursor(message).member("refusal");
+        if (refusal != null && !"null".equals(refusal))
+        {
+            throw badResponse();
+        }
+
+        Cursor content = new Cursor(new Cursor(message).member("content"));
+        String text = content.readString();
+        content.requireEnd();
+        return text;
     }
+
     public String[] parseCandidates(String content) throws AIServiceException
     {
-        // TODO Role B: content 必须刚好是 3 个不同的非空字串的 JSON array,否则 throw
-        throw new AIServiceException("parseCandidates not implemented yet (Role B)");
+        Cursor array = new Cursor(unwrapCodeFence(content));
+        array.expect('[');
+        String[] candidates = new String[REQUIRED_CANDIDATES];
+        String[] intents = new String[REQUIRED_CANDIDATES];
+        for (int i = 0; i < candidates.length; i++)
+        {
+            if (array.take(']'))
+            {
+                array.requireEnd();
+                throw notEnoughMeanings();
+            }
+            String item = array.readValue();
+            String intent = stringMember(item, "intent");
+            String rawText = stringMember(item, "text");
+            String text = rawText.strip();
+            if (!Codes.isValid(intent, INTENTS) || !CommunicationRules.isValidSentence(text) || !isSingleLine(rawText))
+            {
+                throw badResponse();
+            }
+            String wording = comparableWording(text);
+            for (int j = 0; j < i; j++)
+            {
+                if (intent.equals(intents[j]) || wording.equals(comparableWording(candidates[j])))
+                {
+                    throw notEnoughMeanings();
+                }
+            }
+            intents[i] = intent;
+            candidates[i] = text;
+            if (i < candidates.length - 1 && !array.take(','))
+            {
+                array.expect(']');
+                array.requireEnd();
+                throw notEnoughMeanings();
+            }
+        }
+        array.expect(']');
+        array.requireEnd();
+        return candidates;
+    }
+
+    static String intentCodes()
+    {
+        return String.join(", ", INTENTS);
+    }
+
+    private static String stringMember(String item, String name) throws AIServiceException
+    {
+        Cursor field = new Cursor(new Cursor(item).member(name));
+        String value = field.readString();
+        field.requireEnd();
+        return value;
+    }
+
+    private static String comparableWording(String text)
+    {
+        String lowerCase = text.toLowerCase(Locale.ROOT);
+        return CLOSING_FILLER.matcher(lowerCase).replaceFirst("")
+                .replaceAll("\\p{P}", "").replaceAll("\\s+", " ").strip();
+    }
+
+    private static String unwrapCodeFence(String content) throws AIServiceException
+    {
+        if (content == null)
+        {
+            throw badResponse();
+        }
+        String trimmed = content.strip();
+        if (!trimmed.startsWith("```"))
+        {
+            return content;
+        }
+
+        // Some providers wrap the whole JSON reply in one Markdown code block.
+        int firstLineEnd = trimmed.indexOf('\n');
+        int lastLineStart = trimmed.lastIndexOf('\n');
+        if (firstLineEnd < 0 || firstLineEnd == lastLineStart)
+        {
+            throw badResponse();
+        }
+        String opening = trimmed.substring(0, firstLineEnd).strip();
+        if (!("```".equals(opening) || "```json".equalsIgnoreCase(opening))
+                || !"```".equals(trimmed.substring(lastLineStart + 1)))
+        {
+            throw badResponse();
+        }
+        return trimmed.substring(firstLineEnd + 1, lastLineStart);
+    }
+
+    private static boolean isSingleLine(String text)
+    {
+        for (int i = 0; i < text.length(); i++)
+        {
+            char ch = text.charAt(i);
+            if ((Character.isISOControl(ch) && ch != '\t') || ch == '\u2028' || ch == '\u2029')
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static String quote(String text)
+    {
+        if (text == null)
+        {
+            return "null";
+        }
+        StringBuilder json = new StringBuilder("\"");
+        for (int i = 0; i < text.length(); i++)
+        {
+            char ch = text.charAt(i);
+            switch (ch)
+            {
+                case '"' -> json.append("\\\"");
+                case '\\' -> json.append("\\\\");
+                case '\b' -> json.append("\\b");
+                case '\f' -> json.append("\\f");
+                case '\n' -> json.append("\\n");
+                case '\r' -> json.append("\\r");
+                case '\t' -> json.append("\\t");
+                default ->
+                {
+                    if (ch < ' ')
+                    {
+                        json.append("\\u00");
+                        json.append(Character.forDigit(ch >> 4, 16));
+                        json.append(Character.forDigit(ch & 15, 16));
+                    }
+                    else
+                    {
+                        json.append(ch);
+                    }
+                }
+            }
+        }
+        return json.append('"').toString();
+    }
+
+    private static AIServiceException badResponse()
+    {
+        return new AIServiceException("The AI returned an invalid reply. Ask for suggestions again or add more keywords.");
+    }
+
+    private static AIServiceException notEnoughMeanings()
+    {
+        return new AIServiceException("Could not find three different meanings. Add more keywords or try again.");
+    }
+
+    private static class Cursor
+    {
+        private static final int MAX_DEPTH = 32;
+        private final String json;
+        private int index;
+
+        Cursor(String json) throws AIServiceException
+        {
+            if (json == null)
+            {
+                throw badResponse();
+            }
+            this.json = json;
+        }
+
+        // Read one whole object, remembering only the requested field.
+        String member(String name) throws AIServiceException
+        {
+            expect('{');
+            String result = null;
+            if (!take('}'))
+            {
+                do
+                {
+                    String key = readString();
+                    expect(':');
+                    if (name.equals(key))
+                    {
+                        if (result != null)
+                        {
+                            throw badResponse();
+                        }
+                        result = readValue();
+                    }
+                    else
+                    {
+                        skipValue(0);
+                    }
+                }
+                while (take(','));
+                expect('}');
+            }
+            requireEnd();
+            return result;
+        }
+
+        String readValue() throws AIServiceException
+        {
+            skipSpace();
+            int start = index;
+            skipValue(0);
+            return json.substring(start, index);
+        }
+
+        private void skipValue(int depth) throws AIServiceException
+        {
+            skipSpace();
+            if (index == json.length() || depth >= MAX_DEPTH)
+            {
+                throw badResponse();
+            }
+            switch (json.charAt(index))
+            {
+                case '"' -> readString();
+                case '{' -> skipGroup('{', '}', depth);
+                case '[' -> skipGroup('[', ']', depth);
+                default -> skipLiteral();
+            }
+        }
+
+        private void skipGroup(char open, char close, int depth) throws AIServiceException
+        {
+            expect(open);
+            if (take(close))
+            {
+                return;
+            }
+            do
+            {
+                if (open == '{')
+                {
+                    readString();
+                    expect(':');
+                }
+                skipValue(depth + 1);
+            }
+            while (take(','));
+            expect(close);
+        }
+
+        private void skipLiteral() throws AIServiceException
+        {
+            int start = index;
+            while (index < json.length() && " \t\r\n,]}".indexOf(json.charAt(index)) < 0)
+            {
+                index++;
+            }
+            String token = json.substring(start, index);
+            if (!"null".equals(token) && !"true".equals(token) && !"false".equals(token)
+                    && !token.matches("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?"))
+            {
+                throw badResponse();
+            }
+        }
+
+        String readString() throws AIServiceException
+        {
+            expect('"');
+            StringBuilder text = new StringBuilder();
+            while (index < json.length())
+            {
+                char ch = json.charAt(index++);
+                if (ch == '"')
+                {
+                    if (text.length() > 0 && Character.isHighSurrogate(text.charAt(text.length() - 1)))
+                    {
+                        throw badResponse();
+                    }
+                    return text.toString();
+                }
+                if (ch < ' ')
+                {
+                    throw badResponse(); // JSON control characters must be escaped.
+                }
+                if (ch == '\\')
+                {
+                    ch = readEscape();
+                }
+                // Java represents characters like emoji as two matching UTF-16 units.
+                if (Character.isLowSurrogate(ch))
+                {
+                    if (text.length() == 0 || !Character.isHighSurrogate(text.charAt(text.length() - 1)))
+                    {
+                        throw badResponse();
+                    }
+                }
+                else if (text.length() > 0 && Character.isHighSurrogate(text.charAt(text.length() - 1)))
+                {
+                    throw badResponse();
+                }
+                text.append(ch);
+            }
+            throw badResponse();
+        }
+
+        private char readEscape() throws AIServiceException
+        {
+            if (index == json.length())
+            {
+                throw badResponse();
+            }
+            return switch (json.charAt(index++))
+            {
+                case '"' -> '"';
+                case '\\' -> '\\';
+                case '/' -> '/';
+                case 'b' -> '\b';
+                case 'f' -> '\f';
+                case 'n' -> '\n';
+                case 'r' -> '\r';
+                case 't' -> '\t';
+                case 'u' -> readUnicode();
+                default -> throw badResponse();
+            };
+        }
+
+        private char readUnicode() throws AIServiceException
+        {
+            if (json.length() - index < 4)
+            {
+                throw badResponse();
+            }
+            int code = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                char ch = json.charAt(index++);
+                int digit = "0123456789abcdef".indexOf(Character.toLowerCase(ch));
+                if (digit < 0 || ch > 127)
+                {
+                    throw badResponse();
+                }
+                code = code * 16 + digit;
+            }
+            return (char) code;
+        }
+
+        private void skipSpace()
+        {
+            while (index < json.length() && " \t\r\n".indexOf(json.charAt(index)) >= 0)
+            {
+                index++;
+            }
+        }
+
+        boolean take(char expected)
+        {
+            skipSpace();
+            if (index < json.length() && json.charAt(index) == expected)
+            {
+                index++;
+                return true;
+            }
+            return false;
+        }
+
+        void expect(char expected) throws AIServiceException
+        {
+            if (!take(expected))
+            {
+                throw badResponse();
+            }
+        }
+
+        void requireEnd() throws AIServiceException
+        {
+            skipSpace();
+            if (index != json.length())
+            {
+                throw badResponse();
+            }
+        }
     }
 }
