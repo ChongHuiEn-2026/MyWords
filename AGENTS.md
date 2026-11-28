@@ -41,7 +41,7 @@ Ask which role the user has. Edit only that role's files. If another role's clas
 - Never auto-select, send or save an AI interpretation. Approving a sentence, saving it and allowing AI reuse are separate choices.
 - Only the Communicator can change AI-sharing consent. A Supporter may edit settings only when authorised.
 - Keep profiles and contexts separate (no HEALTHCARE memory in FAMILY suggestions). Use fictional data only.
-- Run the HTML frontend through the local Java server described in `docs/INTEGRATION.md`. Coordinate any remote hosting, new speech services, microphone input, model fine-tuning or unrelated features through a recorded decision.
+- Run the HTML frontend through the local Java server described in `docs/INTEGRATION.md`. Browser speech input and read-aloud are approved by decision D10 (no AI calls from the browser). Coordinate any remote hosting, other speech services, model fine-tuning or unrelated features through a recorded decision.
 - Never claim a feature works, a test passed or accuracy improved without evidence.
 
 ## Working style

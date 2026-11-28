@@ -48,6 +48,7 @@ final class BrowserApp {
         String partnerId = "";
         String keywords = "";
         Suggestion[] choices = new Suggestion[0];
+        boolean[] rejected = new boolean[0]; // a rejected suggestion cannot be chosen again, the others stay available
 
         Session(String profile) {
             this.profile = profile;
@@ -298,6 +299,7 @@ final class BrowserApp {
         Suggestion[] results = controller.requestSuggestions(ticket);
         session.requestId = BrowserRecords.token();
         session.choices = results;
+        session.rejected = new boolean[results.length];
         session.partnerId = partner.getPartnerId();
         session.keywords = keywords;
         StringBuilder json = new StringBuilder("{\"request\":").append(quote(session.requestId))
@@ -318,6 +320,7 @@ final class BrowserApp {
         }
         int index = Integer.parseInt(form.get("index"));
         if (index < 0 || index >= session.choices.length) throw new InvalidInputException("Choose a suggestion.");
+        if (session.rejected[index]) throw new InvalidInputException("You already said this suggestion was not right.");
         Suggestion choice = session.choices[index];
         String type = option(form.get("decision"), "decision", "APPROVE", "EDIT", "REJECT");
         boolean reject = "REJECT".equals(type);
@@ -336,8 +339,13 @@ final class BrowserApp {
             files.recordDecision(feedback, saved);
             if (!detail.isEmpty()) records.put("REASON", profile.getProfileId(), feedback.getFeedbackId(), detail);
         } else if (saved != null) files.savePhrase(saved);
-        session.requestId = "";
-        session.choices = new Suggestion[0];
+        if (reject) {
+            session.rejected[index] = true; // keep the other suggestions so the communicator can still pick one
+        } else {
+            session.requestId = "";
+            session.choices = new Suggestion[0];
+            session.rejected = new boolean[0];
+        }
         return "{\"ok\":true}";
     }
 
@@ -363,7 +371,9 @@ final class BrowserApp {
             if (i > 0) json.append(',');
             Phrase phrase = list[i];
             json.append("{\"id\":").append(quote(phrase.getPhraseId())).append(",\"text\":")
-                    .append(quote(phrase.getConfirmedText())).append(",\"reuse\":").append(phrase.isAllowAIReuse()).append('}');
+                    .append(quote(phrase.getConfirmedText())).append(",\"keywords\":").append(quote(phrase.getKeywords()))
+                    .append(",\"createdAt\":").append(phrase.getCreatedAt())
+                    .append(",\"reuse\":").append(phrase.isAllowAIReuse()).append('}');
         }
         return json.append("]}").toString();
     }

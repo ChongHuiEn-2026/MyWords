@@ -28,12 +28,12 @@ Last updated: **27 November 2026 (MYT)** for draft PR #4.
 | `DemoData` (fictional Mei / Ah Ma / Dr Lim on first run) | A | Done |
 | `AppController` (session, consent check, stale-result check, AI→fallback) | A | Used by the HTML and Scanner flows |
 | `SuggestionService.savedPhraseFallback`, `MemoryManager`, `CommunicationRules`, `FeedbackManager` | C | Done (v1) |
-| HTML screens, `BrowserApp` and `ReportGenerator` | D / integration | HTML is the selected GUI in draft PR #4 |
+| HTML screens, `BrowserApp` and `ReportGenerator` | D / integration | HTML is the selected GUI in draft PR #4. Redesigned 28 Nov for aphasia/stroke users with voice input (D10, section 6c) |
 | `AIConfig`, `AIHelper.ask`, `PromptBuilder`, `AIResponseParser` | B (xxianen) | **In draft PR #4**: prompts for three plausible interpretations, validates and logs the batch, and falls back to saved phrases. Live wording review of this response format is pending |
 | Automated checks (`tests/`) | B, C (+ A's checks kept by A) | `mywords.ai.RoleBAIChecks`, `mywords.logic.RoleCLogicChecks` and `mywords.web.BrowserChecks`. How to run: section 9b |
 | Request snapshot (consent race fix, 26 Nov) | A + D | Done: keywords, profile, partner and consent are captured at the click and re-checked before sending (section 6) |
 
-For a fictional offline demo, open the HTML GUI, choose **Quick Demo Login**, then **Family → Ah Ma → Eat or Drink → My Own Idea (Type Myself)**. Enter `kopi` and look for a **Saved phrase** suggestion.
+For a fictional offline demo, run `mywords.web.BrowserMain` (the demo opens by itself), keep **Ah Ma** selected, tap **Or type a few words**, enter `kopi`, tap **Done** and look for a **Saved sentence** suggestion.
 
 ---
 
@@ -220,6 +220,22 @@ The original announcement asks for "a text menu that reads input with Scanner". 
 - Both call the **same** `AppController` / `FileManager` / `FeedbackManager` / `ReportGenerator`, so **no business logic is duplicated** and they read and write the same `data/` files. If you change a public method, the console menu must still compile.
 - In VS Code: open `src/mywords/app/ConsoleMain.java` and press Run; the menu appears in the Terminal.
 
+## 6c. HTML screens after the D10 redesign (28 Nov)
+
+Files: `MyWords.html` (markup only), `mywords.css` (plain CSS), `browser.js` (all screen logic). Every action still goes to `BrowserApp` through `POST /api/<action>`; no business logic moved into JavaScript.
+
+| Screen | What the communicator does | Java action(s) |
+| --- | --- | --- |
+| Home | Tap to speak, or type; choose who they are talking to; or tap a picture | `session`, `demo`, `suggest` |
+| Listen | Speak (browser speech recognition) or type keywords, then **Done** | `suggest` |
+| Choose | Hear each suggestion, then **Use this**, **Edit** or **Not right** (4 reasons, optional correction, separate save and AI-reuse ticks) | `decision` (REJECT keeps the other suggestions available) |
+| Speak | Big text + read aloud; choose **Just this once / Save / Save and help AI learn** (default: nothing saved) | `decision` or `manual` |
+| Sidebar | Saved sentences (reuse switch, delete, export), people, quick words, learned feedback, language, text size, voice, speed, wording style, dark screen, AI sharing (with the disclosure), switch account | `phrases`, `phrase-*`, `report`, `partner-*`, `need-*`, `feedback*`, `profile`, `consent`, `logout`, `login`, `signup` |
+
+Always visible: back / next (top left), **Yes**, **No** and **Call someone** (bottom). Fastest paths: picture → Use this (2 taps); Tap to speak → Done → Use this (3 taps).
+
+---
+
 ## 7. Malaysian slang and rojak (core MVP feature, restored)
 
 MyWords is for everyday Malaysian speech. Accept local terms, informal spelling and mixed-language keywords. When the communicator's style is casual or rojak, keep the local expressions that fit the meaning. When the style is formal, change the register but keep the same intent. Always combine the **profile's `languageStyle`** with the **partner's `preferredTone` and context**. The communicator can review, edit or reject every suggestion.
@@ -335,3 +351,4 @@ java -cp out mywords.web.BrowserChecks
 - `FileManager` rolls back its **arrays** when a save fails. It cannot undo a **field you changed on an object** before calling save (for example `profile.setAiSharingEnabled(...)` or `phrase.setAllowAIReuse(...)`). Whoever calls the setter must set it back in the `catch`, as `AppController.updateProfileSettings` does. **D: please apply this in `toggleProfileAISharing`, `manageMemories` and `manageFeedbackMemory`.**
 - Choosing a profile is not secure login. The Supporter authorisation is a demo of rules, not security.
 - Retrieval is keyword overlap, not model training. Any accuracy improvement must be measured, never assumed.
+- Voice input depends on the browser. In Chrome and Edge it may use the browser maker's online speech service, so it needs internet and should only be used with fictional speech in demos. It is not available in every browser; typing always works.
