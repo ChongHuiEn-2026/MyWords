@@ -247,7 +247,7 @@ rm -rf data && mv data_backup data  # restore
 Recording: 1080p, readable font size, microphone check; upload as `[TO CHECK: MP4 or unlisted link, lecturer Q05]`.
 
 ## 7. Submission package (one ZIP, name `G[NN]_T3_MyWords.zip`, group number `[TO CHECK]`)
-Include `MyWords.html`, `browser.js`, `mywords.css`, `tailwind.config.cjs`, `src/`, `tests/`, `docs/`, `README.md` (run steps for `BrowserMain` and `ConsoleMain`), `config.example.txt` and a **`data/` folder with fresh fictional `.txt` data**. Generate the sample data from a clean checkout.
+Include `MyWords.html`, `browser.js`, `mywords.css`, `src/`, `tests/`, `docs/`, `README.md` (run steps for `BrowserMain` and `ConsoleMain`), `config.example.txt` and a **`data/` folder with fresh fictional `.txt` data**. Generate the sample data from a clean checkout.
 Exclude: `config.txt`, real keys, `out/`, `bin/`, `.vscode/`, `.git/`, `ai_log.txt` from real tests, `latest_roles/` (archive).
 Final check: unzip into an empty folder → compile → run GUI and text menu → restart → data reloads. Report `GroupNo_TrackNo_ProjectName.docx/.pdf`; both upload destinations `[TO CHECK: Q04]`.
 

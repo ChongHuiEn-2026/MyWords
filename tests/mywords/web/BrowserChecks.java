@@ -60,6 +60,20 @@ public class BrowserChecks {
                         bad + " reply offers guidance and saved phrases without partial AI output");
                 require(Files.readAllLines(log).size() == 4, bad + " reply does not write AI log rows");
             }
+            // Redesign (28 Nov): a rejected suggestion stays rejected, the other two can still be chosen once.
+            String fresh = call("suggest", "partner=CP001&keywords=Ah+Ma+yumcha+tomorrow");
+            String req = fresh.substring(fresh.indexOf("\"request\":\"") + 11);
+            req = req.substring(0, req.indexOf('"'));
+            call("decision", "request=" + req + "&index=0&decision=REJECT&reason=WRONG_TONE&saveFeedback=false");
+            expectFailure("decision", "request=" + req + "&index=0&decision=REJECT&reason=WRONG_TONE", 400);
+            call("decision", "request=" + req + "&index=1&decision=APPROVE&savePhrase=false&saveFeedback=false");
+            expectFailure("decision", "request=" + req + "&index=2&decision=APPROVE", 400);
+            require(Files.readAllLines(log).size() == 7, "the second request logged its three replies");
+            require(BrowserMain.localHost("localhost:" + server.port(), server.port()) != null
+                    && BrowserMain.localHost("127.0.0.1:" + server.port(), server.port()) != null
+                    && BrowserMain.localHost("evil.example:" + server.port(), server.port()) == null,
+                    "only this computer's own host names are accepted");
+            require(call("phrases", "partner=CP001").contains("\"createdAt\":"), "phrases include their saved time");
             call("profile", "style=Formal+English&tone=Polite&gender=Female&language=en&theme=dark&font=large");
             call("need-add", "topic=Others&label=Pasar+malam");
             call("manual", "partner=CP001&keywords=pasar+malam&text=Can+we+go+to+pasar+malam%3F&reuse=false");

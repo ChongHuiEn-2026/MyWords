@@ -18,20 +18,17 @@ find src -name '*.java' -print0 | xargs -0 javac --release 17 -encoding UTF-8 -d
 java -cp out mywords.web.BrowserMain
 ```
 
-Open **http://127.0.0.1:8080/** and choose **Quick Demo Login** for fictional data. The terminal must stay open while you use the page. Pass a different port as a final argument if 8080 is occupied. The app serves its own copy of Role D’s Tailwind styles, so the screens and saved phrases work without an internet connection.
+The page opens in your default browser by itself (add `--no-open` to stop that). If it does not, open **http://127.0.0.1:8080/** or **http://localhost:8080/** in **Chrome or Edge**. The demo account (fictional Mei, Ah Ma, Dr Lim) starts straight away; there is no login wall. The terminal must stay open while you use the page. Pass a different port as an argument if 8080 is occupied.
 
-Choose **Family → Ah Ma → Eat or Drink → My Own Idea (Type Myself)**, enter `kopi`, and ask for suggestions. The demo starts with AI sharing off. Saved phrases, confirmed feedback, contacts, account settings and reports use the Java backend and its `data/` folder.
+Try it: tap **Drink** (or tap **Tap to speak** and say "kopi"), then tap **Use this** on a sentence. The phone or computer says it out loud. The demo starts with AI sharing off, so you see saved phrases; turn on **AI suggestions** in the menu (☰) after reading the notice.
 
-For ILMU or another approved provider, copy `config.example.txt` to local `config.txt` and fill in the HTTPS Chat Completions endpoint, the model, and the key. Use fictional keywords. Read the **AI sharing** disclosure before switching it on. The browser sends its request to Java, and Java keeps the provider key and writes displayed replies to `data/ai_log.txt`.
+Voice input uses the browser's speech recognition (Chrome or Edge, microphone allowed). Chrome and Edge may send the audio to their own speech service; only the recognised text is sent to Java. Typing always works as well. See decision D10 in `docs/DECISIONS.md`.
+
+For ILMU or another approved provider, copy `config.example.txt` to local `config.txt` and fill in the HTTPS Chat Completions endpoint, the model, and the key. Use fictional keywords. The browser sends its request to Java, and Java keeps the provider key and writes displayed replies to `data/ai_log.txt`.
 
 The AI requests three plausible interpretations. If the reply is incomplete or repetitive, Java offers a retry and any matching saved phrases.
 
-The shipped `mywords.css` was built using Tailwind CSS 3.4.17 with Role D’s theme. To regenerate it after changing CSS utility classes, run this with the standalone Tailwind CLI:
-
-```sh
-printf '@tailwind base;\n@tailwind components;\n@tailwind utilities;\n' > /tmp/mywords-tailwind.css
-tailwindcss -c tailwind.config.cjs --content 'MyWords.html,browser.js' -i /tmp/mywords-tailwind.css -o mywords.css --minify
-```
+`mywords.css` is plain hand-written CSS (no build step). Fonts load from Google Fonts when online and fall back to system fonts offline.
 
 To run the browser backend checks, compile the tests into `out`. Run this command from the repository root:
 

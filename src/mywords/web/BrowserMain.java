@@ -24,13 +24,33 @@ public final class BrowserMain implements AutoCloseable {
     }
 
     public static void main(String[] args) throws IOException, InvalidInputException, StorageFullException {
-        int port = args.length == 0 ? 8080 : Integer.parseInt(args[0]);
+        int port = 8080;
+        boolean openBrowser = true;
+        for (String arg : args) {
+            if ("--no-open".equals(arg)) openBrowser = false; // useful for tests and servers without a screen
+            else port = Integer.parseInt(arg);
+        }
         FileManager files = new FileManager("data");
         files.loadAll();
         DemoData.createIfEmpty(files);
         BrowserMain browser = start(Path.of("MyWords.html"), files, new AIHelper(files), port);
         Runtime.getRuntime().addShutdownHook(new Thread(browser::close));
-        System.out.println("MyWords is ready at http://127.0.0.1:" + browser.port() + "/");
+        String address = "http://127.0.0.1:" + browser.port() + "/";
+        System.out.println("MyWords is ready at " + address);
+        System.out.println("Keep this window open while you use MyWords. Press Ctrl+C to stop.");
+        if (openBrowser) openInBrowser(address);
+    }
+
+    /** Opens the page in the default browser when the computer has a desktop; otherwise the user opens the address. */
+    private static void openInBrowser(String address) {
+        try {
+            if (!java.awt.GraphicsEnvironment.isHeadless() && java.awt.Desktop.isDesktopSupported()
+                    && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(java.net.URI.create(address));
+            }
+        } catch (IOException | UnsupportedOperationException | SecurityException e) {
+            System.out.println("Open " + address + " in Chrome or Edge.");
+        }
     }
 
     static BrowserMain start(Path html, FileManager files, AIHelper ai, int port)
@@ -38,8 +58,8 @@ public final class BrowserMain implements AutoCloseable {
         byte[] page = Files.readAllBytes(html);
         BrowserApp app = new BrowserApp(files, ai);
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 16);
-        String host = "127.0.0.1:" + server.getAddress().getPort();
-        server.createContext("/", exchange -> serve(exchange, host, page, html, app));
+        int boundPort = server.getAddress().getPort();
+        server.createContext("/", exchange -> serve(exchange, boundPort, page, html, app));
         server.start();
         return new BrowserMain(server);
     }
@@ -52,18 +72,20 @@ public final class BrowserMain implements AutoCloseable {
         server.stop(0);
     }
 
-    private static void serve(HttpExchange exchange, String host, byte[] page, Path html, BrowserApp app)
+    private static void serve(HttpExchange exchange, int port, byte[] page, Path html, BrowserApp app)
             throws IOException {
         try (exchange) {
             exchange.getResponseHeaders().set("Cache-Control", "no-store");
             exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
             exchange.getResponseHeaders().set("Referrer-Policy", "no-referrer");
+            exchange.getResponseHeaders().set("Permissions-Policy", "microphone=(self), camera=(), geolocation=()");
             exchange.getResponseHeaders().set("Content-Security-Policy",
                     "default-src 'self'; script-src 'self' 'unsafe-inline'; "
                     + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                     + "font-src 'self' https://fonts.gstatic.com; connect-src 'self'; "
                     + "img-src 'self' data:; frame-ancestors 'none'; form-action 'self'");
-            if (!host.equals(exchange.getRequestHeaders().getFirst("Host"))) {
+            String host = localHost(exchange.getRequestHeaders().getFirst("Host"), port);
+            if (host == null) {
                 error(exchange, 403, "Open the local MyWords address.");
                 return;
             }
@@ -83,10 +105,20 @@ public final class BrowserMain implements AutoCloseable {
         }
     }
 
+    /** Only this computer's own addresses are accepted, which blocks pages from other sites (DNS rebinding). */
+    static String localHost(String host, int port) {
+        String[] allowed = {"127.0.0.1:" + port, "localhost:" + port};
+        for (String candidate : allowed) {
+            if (candidate.equalsIgnoreCase(host)) return candidate.toLowerCase(Locale.ROOT);
+        }
+        return null;
+    }
+
     private static void api(HttpExchange exchange, String host, String action, BrowserApp app)
             throws IOException {
         String type = exchange.getRequestHeaders().getFirst("Content-Type");
-        if (!("http://" + host).equals(exchange.getRequestHeaders().getFirst("Origin"))) {
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin == null || !("http://" + host).equalsIgnoreCase(origin)) {
             error(exchange, 403, "Open MyWords from its local server.");
             return;
         }
